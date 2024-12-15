@@ -6,7 +6,7 @@ pkgs.mkShell {
     pkgs.haskellPackages.ghc
     pkgs.haskellPackages.ghcid
     pkgs.haskellPackages.cabal-install
-    pkgs.haskellPackages.zlib_0_7_1_0
+    pkgs.haskellPackages.zlib
     pkgs.zlib
     pkgs.sqlite
     pkgs.rlwrap

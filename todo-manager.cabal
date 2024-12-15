@@ -18,3 +18,4 @@ executable todo-manager
                     , persistent-sqlite
                     , persistent-template
                     , transformers
+                    , haskeline
