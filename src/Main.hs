@@ -46,6 +46,7 @@ import           GHC.Int                              (Int64)
 import           System.Console.Haskeline
 import           System.IO                            (hFlush, stdout)
 import           Text.Parsec
+import           Text.Parsec.Error                    (errorMessages)
 
 data Status = Complete
             | InProgress
@@ -57,17 +58,10 @@ data Level = High
            | Low
            deriving (Show, Eq, Read, Generic, Ord)
 
--- instance Ord Level where
---   compare High _ = GT
---   compare _ Low  = GT
-
 instance IsString Level where
   fromString "High"   = High
   fromString "Medium" = Medium
   fromString "Low"    = Low
-  fromString "high"   = High
-  fromString "medium" = Medium
-  fromString "low"    = Low
 
 instance IsString Status where
   fromString "Complete"   = Complete
@@ -94,10 +88,10 @@ type Parse a = ParsecT String () Identity a
 type Action m = ReaderT SqlBackend m ()
 
 data Group = ID Id
-           | All
+           | All (Maybe Status)
            | STS Status
-           | PRI
-           | Due
+           | PRI (Maybe Status)
+           | Due (Maybe Status)
            deriving (Show, Eq)
 
 data Commands = Add (Maybe Day)
@@ -108,6 +102,7 @@ data Commands = Add (Maybe Day)
               | Priority Id Level
               | Edit Id (Maybe String)
               | Date Id (Maybe Day)
+              | Exit
               deriving (Show, Eq)
 
 databaseSetup :: IO ()
@@ -129,30 +124,32 @@ loop = do
   when isLooping loop
 
 handleInput :: String -> IO Bool
-handleInput "exit" = do
-  putStrLn "Goodbye!"
-  pure False
 handleInput input = do
   case commands input of
-    Left output  -> putStrLn $ "You entered: " ++ show output
-    Right output -> action output
-  pure True
+    Left output  -> do putStrLn $ "You entered: " ++ show output ++ "\nTo see the help menu type: Help "
+                       pure True
+    Right Exit   -> do action Exit 
+                       pure False
+    Right output -> do action output
+                       pure True
 
 commands :: String -> Either ParseError Commands
-commands cmd = parse ( addParser
-                   <|> viewParser
-                   <|> markParser
-                   <|> dateParser
-                   <|> deleteParser
-                   <|> priorityParser
-                   <|> editParser
-                   <|> helpParser
+commands cmd = parse ( try addParser
+                   <|> try viewParser
+                   <|> try markParser
+                   <|> try dateParser
+                   <|> try deleteParser
+                   <|> try exitParser
+                   <|> try priorityParser
+                   <|> try editParser
+                   <|> try helpParser
                      ) "test" lowerCMD
   where
     lowerCMD = toLower <$> cmd
 
 action :: Commands -> IO ()
 action Help = putStrLn helpMenu
+action Exit = putStrLn "Goodbye!"
 action cmd =
   runSqlite "tasks.db" $
     case cmd of
@@ -163,9 +160,6 @@ action cmd =
       Add mday         -> addTask mday
       Date id day      -> dateTask id day
       Edit id mDes     -> editTask id mDes
-
-helpMenu :: String
-helpMenu = "This is the help menu"
 
 padColumns :: [[String]] -> [[String]]
 padColumns rows =
@@ -194,12 +188,12 @@ insertBetween sep = foldr (\x acc -> x : sep : acc) [] . initLast
     initLast xs = init xs ++ [last xs]
 
 sorted :: Maybe Group -> [[String]] -> [[String]]
-sorted (Just Due) = uncurry (<>)
-                  . foldr (\x (date,nodate) ->
-                      if null (last x)
-                      then (date, x : nodate)
-                      else (x : date, nodate)) ([],[])
-sorted (Just PRI) = sortBy (compare `on` (!!1))
+sorted (Just (Due _)) = uncurry (<>)
+                      . foldr (\x (date,nodate) ->
+                          if null (last x)
+                          then (date, x : nodate)
+                          else (x : date, nodate)) ([],[])
+sorted (Just (PRI _)) = sortBy (compare `on` (!!1))
 sorted _ = id
 
 pprintTask :: Maybe Group -> [Entity Task] -> String
@@ -257,9 +251,14 @@ deleteTask :: MonadIO m => Id -> Action m
 deleteTask id = delete (toSqlKey id :: Key Task)
 
 viewTask :: MonadIO m => Group -> Action m
-viewTask All = do
-  tasks <- selectList @Task [] []
-  liftIO $ putStrLn $ pprintTask Nothing tasks
+viewTask (All mSts) = 
+  case mSts of 
+    Nothing -> do
+      tasks <- selectList @Task [] []
+      liftIO $ putStrLn $ pprintTask Nothing tasks
+    Just sts -> do
+      tasks <- selectList @Task [TaskStatus ==. sts] []
+      liftIO $ putStrLn $ pprintTask Nothing tasks
 viewTask (ID id) = do
   maybeTask <- get (toSqlKey id :: Key Task)
   case maybeTask of
@@ -268,9 +267,14 @@ viewTask (ID id) = do
 viewTask (STS sts) = do
   task <- selectList @Task [TaskStatus ==. sts] []
   liftIO $ putStrLn $ pprintTask Nothing task
-viewTask grp = do
-  tasks <- selectList @Task [] [Asc TaskDueDate]
-  liftIO $ putStrLn $ pprintTask (Just grp) tasks
+viewTask grp@(Due mSts) = 
+  case mSts of 
+    Nothing -> do
+      tasks <- selectList @Task [] [Asc TaskDueDate]
+      liftIO $ putStrLn $ pprintTask (Just grp) tasks
+    Just sts -> do
+      tasks <- selectList @Task [TaskStatus ==. sts] []
+      liftIO $ putStrLn $ pprintTask (Just grp) tasks
 
 addTask :: MonadIO m => Maybe Day -> Action m
 addTask mday = do
@@ -291,6 +295,11 @@ noDayParser :: Parse (Maybe Day)
 noDayParser = do
   void eof
   pure Nothing
+
+exitParser :: Parse Commands 
+exitParser = do 
+  void $ string "exit"
+  pure Exit
 
 stringToDay :: String -> Maybe Day
 stringToDay = parseTimeM True defaultTimeLocale "%Y-%m-%d"
@@ -332,12 +341,16 @@ viewParser = do
 priParse :: Parse Group
 priParse = do
   pri <- string "priority"
-  pure PRI
+  void $ optional space
+  mGrp <- optionMaybe statusParser
+  pure $ PRI mGrp
 
 dueParser :: Parse Group
 dueParser = do
   due <- string "due"
-  pure Due
+  void $ optional space
+  mGrp <- optionMaybe statusParser
+  pure $ Due mGrp
 
 idParser :: Parse Group
 idParser = do
@@ -347,7 +360,9 @@ idParser = do
 allParser :: Parse Group
 allParser = do
   void $ string "all"
-  pure All
+  void $ optional space
+  mGrp <- optionMaybe statusParser
+  pure $ All mGrp
 
 vStatusParser :: Parse Group
 vStatusParser = STS <$> statusParser
@@ -430,5 +445,29 @@ descParser = do
   void space
   many1 anyChar
   
-  
-  
+helpMenu :: String
+helpMenu = "This is the help menu \
+         \\n \
+         \\nUsage: \
+         \\n  Interactive: (CASE INSENSITIVE) \
+         \\n    Commands: \
+         \\n      Add                       Will ask for task description and then creates the task \
+         \\n      Date <id> <date>          Adds / updates due date on task \
+         \\n      Delete <id>               Deletes the task with that id \
+         \\n      Edit <id>                 Interactive task desctiption editor \
+         \\n      Edit <id> <description>   Pass a new description to task with this id (lowercase only) \
+         \\n      Exit                      Exits the program \
+         \\n      Help                      Prints this menu \
+         \\n      Mark <id> <status>        Marks the task with that is with that status \
+         \\n      Priority <id> <priority>  Changes the task's priority to the given priortiy \
+         \\n      View                          \
+         \\n        View All                Prints all tasks \
+         \\n        View All <status>       Prints all tasks with that status - will return all if status incorrect \
+         \\n        View Due                Prints all tasks organised by due date \
+         \\n        View Due <status>       Prints all tasks organised by due date with that status - will return all if status incorrect \
+         \\n    Inputs: \
+         \\n      Id                        Integer \
+         \\n      Date                      yyyy-mm-dd \
+         \\n      Status                    ToDo / InProgress / Complete \
+         \\n      Priority                  Low / Medium / High \
+         \\n"
