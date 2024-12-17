@@ -49,6 +49,10 @@ import           Text.Parsec
 import           Text.Parsec.Error                    (errorMessages)
 import System.Environment (getArgs)
 
+{-
+TYPES 
+-}
+
 data Status = Complete
             | InProgress
             | ToDo
@@ -106,6 +110,10 @@ data Commands = Add (Maybe Day)
               | Exit
               deriving (Show, Eq)
 
+{-
+Main and supporting functions
+-}
+
 databaseSetup :: IO ()
 databaseSetup = runSqlite "tasks.db" $ do
   runMigration migrateAll
@@ -140,6 +148,10 @@ handleInput input = do
     Right output -> do action output
                        pure True
 
+{-
+Top level Parser and Top level actions 
+-}
+
 commands :: String -> Either ParseError Commands
 commands cmd = parse ( try addParser
                    <|> try viewParser
@@ -167,6 +179,11 @@ action cmd =
       Add mday         -> addTask mday
       Date id day      -> dateTask id day
       Edit id mDes     -> editTask id mDes
+
+
+{-
+Pretty printing
+-}
 
 padColumns :: [[String]] -> [[String]]
 padColumns rows =
@@ -222,6 +239,10 @@ pprintTask mg = unlines
     where prettyDate task | isNothing $ taskDueDate task = ""
                           | otherwise = show $ fromJust (taskDueDate task)
 
+{-
+Supporting actions for all of the commands
+-}
+
 getDesc :: Id -> IO (Maybe String)
 getDesc id = runSqlite "tasks.db" $ do 
   des <- get (toSqlKey id :: Key Task)
@@ -252,7 +273,7 @@ getDate id = runSqlite "tasks.db" $ do
 
 dayParse :: String -> Maybe Day
 dayParse sDay = case parse dayParser "day" sDay of 
-  Left err -> Nothing 
+  Left err -> Nothing -- this error is lost and not printed to the terminal (could be an improvement)
   Right day -> day
 
 editDate :: Maybe Day -> IO (Maybe Day) 
@@ -319,34 +340,20 @@ addTask mday = do
   taskId <- insert newTask
   liftIO $ putStrLn $ "Inserted task with ID: " ++ show taskId
 
+{-
+Command Parsers
+-}
+
 addParser :: Parse Commands
 addParser = do
   void $ string "add"
   mday <- dayParser <|> noDayParser
   pure $ Add mday
 
-noDayParser :: Parse (Maybe Day)
-noDayParser = do
-  void eof
-  pure Nothing
-
 exitParser :: Parse Commands 
 exitParser = do 
   void $ string "exit"
   pure Exit
-
-stringToDay :: String -> Maybe Day
-stringToDay = parseTimeM True defaultTimeLocale "%Y-%m-%d"
-
-dayParser :: Parse (Maybe Day)
-dayParser = do
-  void $ optional space
-  year <- count 4 digit
-  void $ char '-'
-  month <- count 2 digit
-  void $ char '-'
-  day <- count 2 digit
-  pure $ stringToDay $ year <> "-" <> month <> "-" <> day
 
 dateParser :: Parse Commands
 dateParser = do
@@ -371,6 +378,60 @@ viewParser = do
          <|> try dueParser
          <|> try priParse
            )
+
+deleteParser :: Parse Commands
+deleteParser = do
+  void $ string "delete"
+  void space
+  id <- many1 digit
+  pure $ Delete (read id)
+
+priorityParser :: Parse Commands
+priorityParser = do
+  void $ string "priority"
+  void space
+  id <- many1 digit
+  void space
+  level <- levelParser
+  pure $ Priority (read id) level
+
+markParser :: Parse Commands
+markParser = do
+  void $ string "mark"
+  void space
+  id <- many1 digit
+  void space
+  sts <- statusParser
+  pure $ Mark (read id) sts
+
+editParser :: Parse Commands 
+editParser = do 
+  void $ string "edit" 
+  void space 
+  id <- many1 digit 
+  mDes <- optionMaybe descParser 
+  pure $ Edit (read id) mDes
+
+{-
+Supporting parsers for the command parsers
+-}
+
+dayParser :: Parse (Maybe Day)
+dayParser = do
+  void $ optional space
+  year <- count 4 digit
+  void $ char '-'
+  month <- count 2 digit
+  void $ char '-'
+  day <- count 2 digit
+  pure $ stringToDay $ year <> "-" <> month <> "-" <> day
+  where 
+    stringToDay = parseTimeM True defaultTimeLocale "%Y-%m-%d"
+
+noDayParser :: Parse (Maybe Day)
+noDayParser = do
+  void eof
+  pure Nothing
 
 priParse :: Parse Group
 priParse = do
@@ -403,22 +464,6 @@ allParser = do
 vStatusParser :: Parse Group
 vStatusParser = STS <$> statusParser
 
-deleteParser :: Parse Commands
-deleteParser = do
-  void $ string "delete"
-  void space
-  id <- many1 digit
-  pure $ Delete (read id)
-
-priorityParser :: Parse Commands
-priorityParser = do
-  void $ string "priority"
-  void space
-  id <- many1 digit
-  void space
-  level <- levelParser
-  pure $ Priority (read id) level
-
 levelParser :: Parse Level
 levelParser = highParser
           <|> mediumParser
@@ -438,15 +483,6 @@ lowParser :: Parse Level
 lowParser = do
   high <- string "low"
   pure Low
-
-markParser :: Parse Commands
-markParser = do
-  void $ string "mark"
-  void space
-  id <- many1 digit
-  void space
-  sts <- statusParser
-  pure $ Mark (read id) sts
 
 completeParser :: Parse Status
 completeParser = do
@@ -468,19 +504,15 @@ statusParser = do toDoParser
               <|> inProgressParser
               <|> completeParser
 
-editParser :: Parse Commands 
-editParser = do 
-  void $ string "edit" 
-  void space 
-  id <- many1 digit 
-  mDes <- optionMaybe descParser 
-  pure $ Edit (read id) mDes
-
 descParser :: Parse String
 descParser = do 
   void space
   many1 anyChar
   
+{-
+Help Menu
+-}
+
 helpMenu :: String
 helpMenu = "This is the help menu \
          \\n \
