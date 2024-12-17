@@ -17,7 +17,7 @@
 
 module Main where
 
-import           Control.Monad                        (void, when)
+import           Control.Monad                        (void, when, join)
 import           Control.Monad.IO.Class               (MonadIO (liftIO))
 import           Control.Monad.Trans.Reader           (ReaderT)
 import           Data.Char                            (toLower)
@@ -47,6 +47,7 @@ import           System.Console.Haskeline
 import           System.IO                            (hFlush, stdout)
 import           Text.Parsec
 import           Text.Parsec.Error                    (errorMessages)
+import System.Environment (getArgs)
 
 data Status = Complete
             | InProgress
@@ -112,8 +113,14 @@ databaseSetup = runSqlite "tasks.db" $ do
 main :: IO ()
 main = do
   databaseSetup
-  putStrLn "Welcome to my TODO List Manager!"
-  loop
+  args <- getArgs
+  case null args of 
+    True -> do
+      putStrLn "Welcome to my TODO List Manager!"
+      loop
+    False -> if head args == "-h" || head args == "--help"
+             then putStrLn helpMenu 
+             else putStrLn $ head args <> " is not recognised\nTry -h or --help"
 
 loop :: IO ()
 loop = do
@@ -238,8 +245,35 @@ editTask id Nothing = do
             Nothing -> pure "" 
             Just des -> editDesc des
 
+getDate :: Id -> IO (Maybe Day)
+getDate id = runSqlite "tasks.db" $ do 
+  task <- get (toSqlKey id :: Key Task)
+  return $ task >>= taskDueDate
+
+dayParse :: String -> Maybe Day
+dayParse sDay = case parse dayParser "day" sDay of 
+  Left err -> Nothing 
+  Right day -> day
+
+editDate :: Maybe Day -> IO (Maybe Day) 
+editDate oldDay = runInputT defaultSettings $ do 
+  minput <- getInputLineWithInitial "Edit the date: " (printDay oldDay, "")
+  case minput of 
+    Nothing -> pure Nothing
+    Just day -> pure $ dayParse day
+  where printDay Nothing = ""
+        printDay (Just dy) = show dy
+
 dateTask :: MonadIO m => Id -> Maybe Day -> Action m
-dateTask id day = update (toSqlKey id :: Key Task) [TaskDueDate =. day]
+dateTask id mDay@(Just _) = update (toSqlKey id :: Key Task) [TaskDueDate =. mDay]
+dateTask id Nothing = do 
+  newDate <- liftIO mDate 
+  update (toSqlKey id :: Key Task) [TaskDueDate =. newDate] 
+  where mDate = do 
+          oldDate <- getDate id 
+          case oldDate of 
+            Nothing -> editDate Nothing 
+            Just day -> editDate $ Just day 
 
 priorityTask :: MonadIO m => Id -> Level -> Action m
 priorityTask id pnum = update (toSqlKey id :: Key Task) [TaskPriority =. pnum]
@@ -306,7 +340,7 @@ stringToDay = parseTimeM True defaultTimeLocale "%Y-%m-%d"
 
 dayParser :: Parse (Maybe Day)
 dayParser = do
-  void space
+  void $ optional space
   year <- count 4 digit
   void $ char '-'
   month <- count 2 digit
@@ -319,8 +353,8 @@ dateParser = do
   void $ string "date"
   void space
   id <- many1 digit
-  day <- dayParser
-  pure $ Date (read id) day
+  day <- optionMaybe dayParser
+  pure $ Date (read id) (join day)
 
 helpParser :: Parse Commands
 helpParser = do
@@ -331,11 +365,11 @@ viewParser :: Parse Commands
 viewParser = do
   void $ string "view"
   void space
-  View <$> ( vStatusParser
-         <|> allParser
-         <|> idParser
-         <|> dueParser
-         <|> priParse
+  View <$> ( try vStatusParser
+         <|> try allParser
+         <|> try idParser
+         <|> try dueParser
+         <|> try priParse
            )
 
 priParse :: Parse Group
@@ -348,9 +382,10 @@ priParse = do
 dueParser :: Parse Group
 dueParser = do
   due <- string "due"
-  void $ optional space
-  mGrp <- optionMaybe statusParser
-  pure $ Due mGrp
+  mspace <- optionMaybe space
+  case mspace of 
+    Nothing -> pure $ Due Nothing
+    Just _ -> Due . Just <$> statusParser
 
 idParser :: Parse Group
 idParser = do
@@ -360,9 +395,10 @@ idParser = do
 allParser :: Parse Group
 allParser = do
   void $ string "all"
-  void $ optional space
-  mGrp <- optionMaybe statusParser
-  pure $ All mGrp
+  mspace <- optionMaybe space
+  case mspace of 
+    Nothing -> pure $ All Nothing
+    Just _ -> All . Just <$> statusParser
 
 vStatusParser :: Parse Group
 vStatusParser = STS <$> statusParser
@@ -452,6 +488,7 @@ helpMenu = "This is the help menu \
          \\n  Interactive: (CASE INSENSITIVE) \
          \\n    Commands: \
          \\n      Add                       Will ask for task description and then creates the task \
+         \\n      Date <id>                 Interactive task date editor \
          \\n      Date <id> <date>          Adds / updates due date on task \
          \\n      Delete <id>               Deletes the task with that id \
          \\n      Edit <id>                 Interactive task desctiption editor \
@@ -462,9 +499,9 @@ helpMenu = "This is the help menu \
          \\n      Priority <id> <priority>  Changes the task's priority to the given priortiy \
          \\n      View                          \
          \\n        View All                Prints all tasks \
-         \\n        View All <status>       Prints all tasks with that status - will return all if status incorrect \
+         \\n        View All <status>       Prints all tasks with that status \
          \\n        View Due                Prints all tasks organised by due date \
-         \\n        View Due <status>       Prints all tasks organised by due date with that status - will return all if status incorrect \
+         \\n        View Due <status>       Prints all tasks organised by due date with that status \
          \\n    Inputs: \
          \\n      Id                        Integer \
          \\n      Date                      yyyy-mm-dd \
