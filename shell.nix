@@ -4,6 +4,7 @@
 pkgs.mkShell {
   buildInputs = [
     pkgs.haskellPackages.ghc
+    pkgs.haskellPackages.ghcid
     pkgs.haskellPackages.cabal-install
   ];
   nativeBuildInputs = [
@@ -12,5 +13,6 @@ pkgs.mkShell {
 
   shellHook = ''
     cabal update
+    export TMPDIR=/tmp
   '';
 }
