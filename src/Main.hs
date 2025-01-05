@@ -6,22 +6,32 @@ import Data.IORef (newIORef, IORef, readIORef)
 import System.Process (callCommand)
 
 data Player1 = Player1 
-  { name1 :: String 
-  , score1 :: Int 
+  { name1  :: String
+  , score1 :: Int
   , token1 :: Token
   }
 
 data Player2 = Player2 
-  { name2 :: String 
-  , score2 :: Int 
+  { name2  :: String
+  , score2 :: Int
   , token2 :: Token
   }
 
 instance Show Player1 where 
-  show p = "Player 1\n    Name: " <> name1 p <> "\n    Score: " <> show (score1 p) <> "\n    Token: " <> show (token1 p)
+  show p  = "Player 1\n    Name: " 
+         <> name1 p 
+         <> "\n    Score: " 
+         <> show (score1 p) 
+         <> "\n    Token: " 
+         <> show (token1 p)
 
 instance Show Player2 where 
-  show p = "Player 2\n    Name: " <> name2 p <> "\n    Score: " <> show (score2 p) <> "\n    Token: " <> show (token2 p)
+  show p  = "Player 2\n    Name: " 
+         <> name2 p 
+         <> "\n    Score: " 
+         <> show (score2 p) 
+         <> "\n    Token: " 
+         <> show (token2 p)
 
 data Score = Score Player1 Player2 
 
@@ -31,8 +41,8 @@ instance Show Score where
 data Coord = Turn Token | B deriving Eq
 
 instance Show Coord where 
-  show (Turn token) = show token 
-  show B = " "
+  show (Turn token) = show token
+  show B            = " "
 
 data Token = X | O deriving Eq
 
@@ -54,11 +64,12 @@ blankBoard = [[B,B,B],[B,B,B],[B,B,B]]
 printGame :: Board -> IO ()
 printGame = putStrLn . (<>) "\n" . unlines . addLines . fmap printRow . numbered 
   where 
-    printRow [x,y,z] = " " <> x <> " | " <> y <> " | " <> z 
+    printRow [x,y,z] = " " <> x <> " | " <> y <> " | " <> z
     addLines [f,s,t] = [f, hor, s, hor, t ]
-    numbered = zipWith (zipWith ifB) [["1","2","3"],["4","5","6"],["7","8","9"]] 
-    ifB n b = if b == B then n else show b
-    hor = "--- --- ---"
+    numbered         = zipWith2 ifB [["1","2","3"],["4","5","6"],["7","8","9"]]
+    ifB n b          = if b == B then n else show b
+    hor              = "--- --- ---"
+    zipWith2         = zipWith . zipWith
 
 printPlayers :: Score -> IO () 
 printPlayers = print
@@ -81,15 +92,18 @@ playerSetup = do
   hFlush stdout
   firstPlayer <- getLine 
   case firstPlayer of 
-    "1" -> newBoard (player1, player2) True
-    "2" -> newBoard (player1, player2) False
+    "1"              -> newBoard (player1, player2) True
+    "2"              -> newBoard (player1, player2) False
     p | p == player1 -> newBoard (player1, player2) True
     p | p == player2 -> newBoard (player1, player2) False
-    _ -> playerSetup
-    where newBoard (player1, player2) True = newIORef $ updateGameState (player1, player2) (0,0) (X,O) X
-          newBoard (player1, player2) False = newIORef $ updateGameState (player1, player2) (0,0) (O,X) X
+    _                -> playerSetup
+    where newBoard (player1, player2) True  
+            = newIORef 
+            $ updateGameState (player1, player2) (0,0) (X,O) X
+          newBoard (player1, player2) False 
+            = newIORef 
+            $ updateGameState (player1, player2) (0,0) (O,X) X
 
--- This needs to be broken into new board and update board as this will create a new IORef each time it is run.
 updateGameState :: (String, String) -> (Int, Int) -> (Token,Token) -> Token -> GameState
 updateGameState (_name1, _name2) (_score1, _score2) (_token1, _token2) _go = 
   GameState 
@@ -113,7 +127,10 @@ loop state = do
   when isLooping $ loop state
   where 
     playerToGoName gamestate = playerToGo (score gamestate) (go gamestate)
-    playerToGo (Score p1 p2) _go = fst . head . filter ((_go ==) . snd) $ [(name1 p1, token1 p1), (name2 p2, token2 p2)]
+    playerToGo (Score p1 p2) _go = fst 
+                                 . head 
+                                 . filter ((_go ==) . snd) 
+                                 $ [(name1 p1, token1 p1), (name2 p2, token2 p2)]
 
 handleInput :: String -> IO Bool
 handleInput "exit" = do
