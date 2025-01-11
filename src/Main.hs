@@ -1,7 +1,8 @@
 module Main where
 
-import           Control.Monad       (when)
+import           Control.Monad       (join, when)
 import           Control.Monad.State
+import           Data.Bifunctor      (Bifunctor (bimap))
 import           Data.IORef          (IORef, newIORef, readIORef, writeIORef)
 import           Data.List           (transpose)
 import           Data.List.Split     (chunksOf)
@@ -47,6 +48,10 @@ data Token = X | O deriving Eq
 instance Show Token where
   show X = "X"
   show O = "O"
+
+switch :: Token -> Token
+switch O = X
+switch X = O
 
 type Board = [[Coord]]
 
@@ -110,6 +115,7 @@ updateGameState _board (_name1, _name2) (_score1, _score2) (_token1, _token2) _g
 loop :: StateT GameState IO ()
 loop = do
   current <- get
+  let currentPlayer = go current
   liftIO $ do
     callCommand "clear"
     print $ game current
@@ -119,13 +125,29 @@ loop = do
   input <- liftIO getLine
   stillPlaying <- handleInput input
   stillGoing <- checkGame
-  when (stillPlaying && not stillGoing) loop
+  updateGame stillGoing currentPlayer
+  when stillPlaying loop
   where
     playerToGoName _go = name
                        . head
                        . filter (\x -> token x == _go)
                        . playersToGo
     playersToGo (Game p1 p2) = [p1,p2]
+
+updateGame :: Bool -> Token -> StateT GameState IO ()
+updateGame False _ = return ()
+updateGame True player = do
+  current <- get
+  let playersTuple (Game p1 p2) = (p1, p2)
+      _game  = game current
+      names  = join bimap name $ playersTuple _game
+      scores = addToPlayersScore player $ playersTuple _game
+      tokens = join bimap switch $ join bimap token $ playersTuple _game
+  put $ updateGameState blankBoard names scores tokens (switch $ go current)
+
+addToPlayersScore :: Token -> (Player, Player) -> (Int, Int)
+addToPlayersScore t (p1, p2) | token p1 == t = ((+1) $ score p1, score p2)
+                             | otherwise     = (score p1, (+1) $ score p2)
 
 checkGame :: StateT GameState IO Bool
 checkGame = do
@@ -159,8 +181,6 @@ handleInput input =
         _board        = board current
         concatBoard   = concat _board
         replace n b g = take (n-1) b <> [g] <> drop n b
-        switch O = X
-        switch X = O
     if concatBoard !! (coord -1) == Blank
     then do put current { board = chunksOf 3 (replace coord concatBoard (Turn _go))
                         , go    = switch _go
