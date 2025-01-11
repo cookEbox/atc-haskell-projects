@@ -1,11 +1,12 @@
 module Main where
 
-import           Control.Monad   (when)
-import           Data.IORef      (IORef, newIORef, readIORef, writeIORef)
-import           Data.List.Split (chunksOf)
-import           System.IO       (hFlush, stdout)
-import           System.Process  (callCommand)
-import Data.List (transpose)
+import           Control.Monad       (when)
+import           Control.Monad.State
+import           Data.IORef          (IORef, newIORef, readIORef, writeIORef)
+import           Data.List           (transpose)
+import           Data.List.Split     (chunksOf)
+import           System.IO           (hFlush, stdout)
+import           System.Process      (callCommand)
 
 data ID = A | B deriving Eq
 
@@ -72,9 +73,9 @@ main :: IO ()
 main = do
   putStrLn "Welcome to Tic Tac Toe!"
   initial <- playerSetup
-  loop initial
+  evalStateT loop initial
 
-playerSetup :: IO (IORef GameState)
+playerSetup :: IO GameState
 playerSetup = do
   putStr "Enter First Players Name: "
   hFlush stdout
@@ -92,11 +93,9 @@ playerSetup = do
     p | p == player2 -> newBoard (player1, player2) False
     _                -> playerSetup
     where newBoard (player1, player2) True
-            = newIORef
-            $ updateGameState blankBoard (player1, player2) (0,0) (X,O) X
+            = return $ updateGameState blankBoard (player1, player2) (0,0) (X,O) X
           newBoard (player1, player2) False
-            = newIORef
-            $ updateGameState blankBoard (player1, player2) (0,0) (O,X) X
+            = return $ updateGameState blankBoard (player1, player2) (0,0) (O,X) X
 
 updateGameState :: Board -> (String, String) -> (Int, Int) -> (Token,Token) -> Token -> GameState
 updateGameState _board (_name1, _name2) (_score1, _score2) (_token1, _token2) _go =
@@ -108,18 +107,19 @@ updateGameState _board (_name1, _name2) (_score1, _score2) (_token1, _token2) _g
     , go = _go
     }
 
-loop :: IORef GameState -> IO ()
-loop state = do
-  current <- readIORef state
-  callCommand "clear"
-  print $ game current
-  printGame $ board current
-  putStr $ playerToGoName (go current) (game current) <> " Enter command: "
-  hFlush stdout
-  input <- getLine
-  stillPlaying <- handleInput state input
-  stillGoing <- checkGame state 
-  when (stillPlaying && not stillGoing) $ loop state
+loop :: StateT GameState IO ()
+loop = do
+  current <- get
+  liftIO $ do
+    callCommand "clear"
+    print $ game current
+    printGame $ board current
+    putStr $ playerToGoName (go current) (game current) <> " Enter command: "
+    hFlush stdout
+  input <- liftIO getLine
+  stillPlaying <- handleInput input
+  stillGoing <- checkGame
+  when (stillPlaying && not stillGoing) loop
   where
     playerToGoName _go = name
                        . head
@@ -127,9 +127,9 @@ loop state = do
                        . playersToGo
     playersToGo (Game p1 p2) = [p1,p2]
 
-checkGame :: IORef GameState -> IO Bool 
-checkGame state = do 
-  current <- readIORef state 
+checkGame :: StateT GameState IO Bool
+checkGame = do
+  current <- get
   let _board      = board current
       checkRows   = any ( \x -> all (== Turn O) x || all (== Turn X) x )
       topLeft     = (!!0) . (!!0)
@@ -138,54 +138,36 @@ checkGame state = do
       topRight    = (!!0) . (!!2)
       bottomLeft  = (!!2) . (!!0)
       diagonals   =
-        [ 
+        [
         [ topLeft _board, middle _board, bottomRight _board ]
         ,
-        [ topRight _board, middle _board, bottomLeft _board ] 
+        [ topRight _board, middle _board, bottomLeft _board ]
         ]
-      allCombinations = _board <> transpose _board <> diagonals 
+      allCombinations = _board <> transpose _board <> diagonals
   return $ checkRows allCombinations
 
-checkGame' :: GameState -> Bool 
-checkGame' current = 
-  let _board      = board current
-      checkRows   = any (== True) . fmap ( \x -> all (== Turn O) x || all (== Turn X) x )
-      topLeft     = (!!0) . (!!0)
-      middle      = (!!1) . (!!1)
-      bottomRight = (!!2) . (!!2)
-      topRight    = (!!0) . (!!2)
-      bottomLeft  = (!!2) . (!!0)
-      diagonals   =
-        [ 
-        [ topLeft _board, middle _board, bottomLeft _board ]
-        ,
-        [ topRight _board, middle _board, bottomLeft _board ] 
-        ]
-      allCombinations = _board <> transpose _board <> diagonals 
-  in checkRows allCombinations
-
-handleInput :: IORef GameState -> String -> IO Bool
-handleInput _ "exit" = do
-  putStrLn "Goodbye!"
-  pure False
-handleInput state input =
+handleInput :: String -> StateT GameState IO Bool
+handleInput "exit" = do
+  liftIO $ putStrLn "Goodbye!"
+  return False
+handleInput input =
   if input `elem` ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
   then do
-    current <- readIORef state
+    current <- get
     let coord         = read input :: Int
         _go           = go current
         _board        = board current
         concatBoard   = concat _board
         replace n b g = take (n-1) b <> [g] <> drop n b
-        switch O      = X
-        switch X      = O
+        switch O = X
+        switch X = O
     if concatBoard !! (coord -1) == Blank
-    then do writeIORef state $ current { board = chunksOf 3 (replace coord concatBoard (Turn _go))
-                                       , go    = switch _go
-                                       }
+    then do put current { board = chunksOf 3 (replace coord concatBoard (Turn _go))
+                        , go    = switch _go
+                        }
             return True
     else return True
 
   else do
-    putStrLn $ "You entered: " ++ input
+    liftIO $ putStrLn $ "You entered: " ++ input
     pure True

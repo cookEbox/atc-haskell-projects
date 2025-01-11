@@ -13,3 +13,4 @@ executable tic-tac-toe
   build-depends:       base >=4.7 && <5
                      , process
                      , split
+                     , mtl
