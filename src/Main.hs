@@ -1,13 +1,15 @@
 module Main where
 
 import           Control.Monad       (join, when)
-import           Control.Monad.State
+import           Control.Monad.State (StateT, evalStateT, get, put, liftIO)
 import           Data.Bifunctor      (Bifunctor (bimap))
 import           Data.IORef          (IORef, newIORef, readIORef, writeIORef)
 import           Data.List           (transpose)
 import           Data.List.Split     (chunksOf)
 import           System.IO           (hFlush, stdout)
 import           System.Process      (callCommand)
+
+type Error = String
 
 data ID = A | B deriving Eq
 
@@ -25,17 +27,27 @@ data Player = Player
 instance Show Player where
   show p  = "Player "
          <> show (_id p)
-         <> "\n    Name: "
+         <> "\n-------"
+         <> "\nName: "
          <> name p
-         <> "\n    Score: "
+         <> "\nScore: "
          <> show (score p)
-         <> "\n    Token: "
+         <> "\nToken: "
          <> show (token p)
 
 data Game = Game Player Player
 
 instance Show Game where
-  show (Game p1 p2) = show p1 <> "\n" <> show p2
+  -- show (Game p1 p2) = show p1 <> "\n" <> show p2
+  show (Game p1 p2) = unlines $ zipWith (<>) (padColumns . lines $ show p1) (lines $ show p2)
+
+padColumns :: [String] -> [String]
+padColumns rows = padRight (maxLengths + 3) <$> rows
+    where
+      maxLengths = maximum . map length $ rows
+
+padRight :: Int -> String -> String
+padRight n str = str ++ replicate (n - length str) ' '
 
 data Coord = Turn Token | Blank deriving Eq
 
@@ -78,7 +90,7 @@ main :: IO ()
 main = do
   putStrLn "Welcome to Tic Tac Toe!"
   initial <- playerSetup
-  evalStateT loop initial
+  evalStateT (loop "") initial
 
 playerSetup :: IO GameState
 playerSetup = do
@@ -112,21 +124,24 @@ updateGameState _board (_name1, _name2) (_score1, _score2) (_token1, _token2) _g
     , go = _go
     }
 
-loop :: StateT GameState IO ()
-loop = do
+loop :: String -> StateT GameState IO ()
+loop notifications = do
   current <- get
   let currentPlayer = go current
   liftIO $ do
     callCommand "clear"
     print $ game current
     printGame $ board current
+    putStrLn notifications
     putStr $ playerToGoName (go current) (game current) <> " Enter command: "
     hFlush stdout
   input <- liftIO getLine
   stillPlaying <- handleInput input
   stillGoing <- checkGame
   updateGame stillGoing currentPlayer
-  when stillPlaying loop
+  case stillPlaying of 
+    Left err -> loop err 
+    Right bl -> when bl $ loop ""
   where
     playerToGoName _go = name
                        . head
@@ -168,11 +183,9 @@ checkGame = do
       allCombinations = _board <> transpose _board <> diagonals
   return $ checkRows allCombinations
 
-handleInput :: String -> StateT GameState IO Bool
-handleInput "exit" = do
-  liftIO $ putStrLn "Goodbye!"
-  return False
-handleInput input =
+handleInput :: String -> StateT GameState IO (Either Error Bool)
+handleInput "exit" = return $ Right False
+handleInput input  =
   if input `elem` ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
   then do
     current <- get
@@ -185,9 +198,8 @@ handleInput input =
     then do put current { board = chunksOf 3 (replace coord concatBoard (Turn _go))
                         , go    = switch _go
                         }
-            return True
-    else return True
+            return $ Right True
+    else return $ Left (input <> " has already been selected") 
 
   else do
-    liftIO $ putStrLn $ "You entered: " ++ input
-    pure True
+    return $ Left (input <> " -- is not a valid coordinate") 
