@@ -38,7 +38,6 @@ instance Show Player where
 data Game = Game Player Player
 
 instance Show Game where
-  -- show (Game p1 p2) = show p1 <> "\n" <> show p2
   show (Game p1 p2) = unlines $ zipWith (<>) (padColumns . lines $ show p1) (lines $ show p2)
 
 padColumns :: [String] -> [String]
