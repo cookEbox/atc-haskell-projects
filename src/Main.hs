@@ -8,8 +8,9 @@ import           Data.List           (transpose)
 import           Data.List.Split     (chunksOf)
 import           System.IO           (hFlush, stdout)
 import           System.Process      (callCommand)
+import Data.Char (toLower)
 
-type Error = String
+type Msg = String
 
 data ID = A | B deriving Eq
 
@@ -135,7 +136,7 @@ loop notifications = do
     putStr $ playerToGoName (go current) (game current) <> " Enter command: "
     hFlush stdout
   input <- liftIO getLine
-  stillPlaying <- handleInput input
+  stillPlaying <- handleInput (toLower <$> input)
   stillGoing <- checkGame
   updateGame stillGoing currentPlayer
   case stillPlaying of 
@@ -182,8 +183,9 @@ checkGame = do
       allCombinations = _board <> transpose _board <> diagonals
   return $ checkRows allCombinations
 
-handleInput :: String -> StateT GameState IO (Either Error Bool)
+handleInput :: String -> StateT GameState IO (Either Msg Bool)
 handleInput "exit" = return $ Right False
+handleInput "help" = return $ Left help
 handleInput input  =
   if input `elem` ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
   then do
@@ -198,7 +200,15 @@ handleInput input  =
                         , go    = switch _go
                         }
             return $ Right True
-    else return $ Left (input <> " has already been selected") 
+    else return $ Left (input <> " has already been selected\n") 
 
   else do
-    return $ Left (input <> " -- is not a valid coordinate") 
+    return $ Left (input <> " -- is not a valid command\n" <> help) 
+
+help :: String 
+help = concat [ "TIC TAC TOE HELP MENU\n" 
+              , "\nCommand  |  Description" 
+              , "\n---------|------------------------------------------" 
+              , "\nhelp     |  This Menu (Case insensitive)"
+              , "\nexit     |  Quits the game (Case insensitive)"
+              , "\n1-9      |  Selects the coordinate labelled the same\n"]
