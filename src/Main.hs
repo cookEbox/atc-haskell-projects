@@ -1,16 +1,21 @@
 module Main where
 
 import           Control.Monad       (join, when)
-import           Control.Monad.State (StateT, evalStateT, get, put, liftIO)
+import           Control.Monad.State (StateT, evalStateT, get, liftIO, put)
 import           Data.Bifunctor      (Bifunctor (bimap))
+import           Data.Char           (toLower)
 import           Data.IORef          (IORef, newIORef, readIORef, writeIORef)
 import           Data.List           (transpose)
 import           Data.List.Split     (chunksOf)
 import           System.IO           (hFlush, stdout)
 import           System.Process      (callCommand)
-import Data.Char (toLower)
 
 type Msg = String
+
+bot :: String
+bot = "BOT"
+
+data GameType = AI | PvP deriving Eq
 
 data ID = A | B deriving Eq
 
@@ -89,8 +94,40 @@ printGame = putStrLn . (<>) "\n" . unlines . addLines . fmap printRow . numbered
 main :: IO ()
 main = do
   putStrLn "Welcome to Tic Tac Toe!"
-  initial <- playerSetup
-  evalStateT (loop "") initial
+  gameType <- playerOrAI
+  case gameType of 
+    PvP -> do initial <- playerSetup
+              evalStateT (playerLoop "") initial
+    AI  -> do initial <- aiSetup 
+              evalStateT (aiLoop "") initial
+
+playerOrAI :: IO GameType
+playerOrAI = do 
+  putStr "Please choose between AI (AI) or Player vs Player (PvP): "
+  hFlush stdout
+  input <- getLine 
+  case toLower <$> input of 
+    "ai" -> return AI 
+    "pvp" -> return PvP 
+    _ -> do putStrLn "Incorrect selection!" 
+            playerOrAI
+
+aiSetup :: IO GameState 
+aiSetup = do 
+  putStr "Enter Player's Name: "
+  hFlush stdout
+  player1 <- getLine 
+  let player2 = bot
+  putStrLn $ "AI opponenet is called: " <> player2
+  putStr "Choose a player to go first (X): "
+  hFlush stdout
+  firstPlayer <- getLine
+  case firstPlayer of
+    "1"              -> newBoard (player1, player2) True
+    "2"              -> newBoard (player1, player2) False
+    p | p == player1 -> newBoard (player1, player2) True
+    p | p == player2 -> newBoard (player1, player2) False
+    _                -> aiSetup
 
 playerSetup :: IO GameState
 playerSetup = do
@@ -109,10 +146,11 @@ playerSetup = do
     p | p == player1 -> newBoard (player1, player2) True
     p | p == player2 -> newBoard (player1, player2) False
     _                -> playerSetup
-    where newBoard (player1, player2) True
-            = return $ updateGameState blankBoard (player1, player2) (0,0) (X,O) X
-          newBoard (player1, player2) False
-            = return $ updateGameState blankBoard (player1, player2) (0,0) (O,X) X
+
+newBoard (player1, player2) True
+  = return $ updateGameState blankBoard (player1, player2) (0,0) (X,O) X
+newBoard (player1, player2) False
+  = return $ updateGameState blankBoard (player1, player2) (0,0) (O,X) X
 
 updateGameState :: Board -> (String, String) -> (Int, Int) -> (Token,Token) -> Token -> GameState
 updateGameState _board (_name1, _name2) (_score1, _score2) (_token1, _token2) _go =
@@ -124,30 +162,54 @@ updateGameState _board (_name1, _name2) (_score1, _score2) (_token1, _token2) _g
     , go = _go
     }
 
-loop :: String -> StateT GameState IO ()
-loop notifications = do
+aiLoop :: String -> StateT GameState IO () 
+aiLoop msg = do 
+  current <- get 
+  let currentPlayer = playerToGoName (go current) (game current)
+  case currentPlayer of 
+    p | p == bot -> aiAlgo 
+    _ -> do stillPlaying <- playerGo msg
+            case stillPlaying of 
+              Left err -> aiLoop err 
+              Right bl -> when bl $ aiLoop ""
+
+aiAlgo :: StateT GameState IO ()
+aiAlgo = undefined
+-- Needs to check if there is a win for bot and play win
+-- Needs to check if there is a win for player and block 
+-- Needs to randomly pick an available coord
+
+playerGo :: String -> StateT GameState IO (Either Msg Bool)
+playerGo msg = do
   current <- get
   let currentPlayer = go current
   liftIO $ do
     callCommand "clear"
     print $ game current
     printGame $ board current
-    putStrLn notifications
+    putStrLn msg
     putStr $ playerToGoName (go current) (game current) <> " Enter command: "
     hFlush stdout
   input <- liftIO getLine
   stillPlaying <- handleInput (toLower <$> input)
   stillGoing <- checkGame
   updateGame stillGoing currentPlayer
-  case stillPlaying of 
-    Left err -> loop err 
-    Right bl -> when bl $ loop ""
+  return stillPlaying
+
+playerLoop :: String -> StateT GameState IO ()
+playerLoop msg = do
+  stillPlaying <- playerGo msg
+  case stillPlaying of
+    Left err -> playerLoop err
+    Right bl -> when bl $ playerLoop ""
+
+playerToGoName :: Token -> Game -> String
+playerToGoName _go = name
+                   . head
+                   . filter (\x -> token x == _go)
+                   . listOfPlayers
   where
-    playerToGoName _go = name
-                       . head
-                       . filter (\x -> token x == _go)
-                       . playersToGo
-    playersToGo (Game p1 p2) = [p1,p2]
+    listOfPlayers (Game p1 p2) = [p1,p2]
 
 updateGame :: Bool -> Token -> StateT GameState IO ()
 updateGame False _ = return ()
@@ -193,22 +255,23 @@ handleInput input  =
     let coord         = read input :: Int
         _go           = go current
         _board        = board current
-        concatBoard   = concat _board
+        joinBoard     = join _board
         replace n b g = take (n-1) b <> [g] <> drop n b
-    if concatBoard !! (coord -1) == Blank
-    then do put current { board = chunksOf 3 (replace coord concatBoard (Turn _go))
+    if joinBoard !! (coord -1) == Blank
+    then do put current { board = chunksOf 3 (replace coord joinBoard (Turn _go))
                         , go    = switch _go
                         }
             return $ Right True
-    else return $ Left (input <> " has already been selected\n") 
+    else return $ Left (input <> " has already been selected\n")
+  else return $ Left (input <> " -- is not a valid command\n" <> help)
 
-  else do
-    return $ Left (input <> " -- is not a valid command\n" <> help) 
+computer :: Board -> Board 
+computer = undefined
 
-help :: String 
-help = concat [ "TIC TAC TOE HELP MENU\n" 
-              , "\nCommand  |  Description" 
-              , "\n---------|------------------------------------------" 
-              , "\nhelp     |  This Menu (Case insensitive)"
-              , "\nexit     |  Quits the game (Case insensitive)"
-              , "\n1-9      |  Selects the coordinate labelled the same\n"]
+help :: String
+help = join [ "TIC TAC TOE HELP MENU\n"
+            , "\nCommand  |  Description"
+            , "\n---------|------------------------------------------"
+            , "\nhelp     |  This Menu (Case insensitive)"
+            , "\nexit     |  Quits the game (Case insensitive)"
+            , "\n1-9      |  Selects the coordinate labelled the same\n"]
