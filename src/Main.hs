@@ -1,7 +1,8 @@
 module Main where
 
 import           Control.Monad       (join, when)
-import           Control.Monad.State (StateT, evalStateT, get, liftIO, put)
+import           Control.Monad.State (StateT, evalStateT, get, gets, liftIO,
+                                      put)
 import           Data.Bifunctor      (Bifunctor (bimap))
 import           Data.Char           (toLower)
 import           Data.IORef          (IORef, newIORef, readIORef, writeIORef)
@@ -9,6 +10,8 @@ import           Data.List           (transpose)
 import           Data.List.Split     (chunksOf)
 import           System.IO           (hFlush, stdout)
 import           System.Process      (callCommand)
+import           System.Random       (randomRIO)
+import Data.Maybe (mapMaybe)
 
 type Msg = String
 
@@ -95,28 +98,28 @@ main :: IO ()
 main = do
   putStrLn "Welcome to Tic Tac Toe!"
   gameType <- playerOrAI
-  case gameType of 
+  case gameType of
     PvP -> do initial <- playerSetup
               evalStateT (playerLoop "") initial
-    AI  -> do initial <- aiSetup 
+    AI  -> do initial <- aiSetup
               evalStateT (aiLoop "") initial
 
 playerOrAI :: IO GameType
-playerOrAI = do 
+playerOrAI = do
   putStr "Please choose between AI (AI) or Player vs Player (PvP): "
   hFlush stdout
-  input <- getLine 
-  case toLower <$> input of 
-    "ai" -> return AI 
-    "pvp" -> return PvP 
-    _ -> do putStrLn "Incorrect selection!" 
+  input <- getLine
+  case toLower <$> input of
+    "ai" -> return AI
+    "pvp" -> return PvP
+    _ -> do putStrLn "Incorrect selection!"
             playerOrAI
 
-aiSetup :: IO GameState 
-aiSetup = do 
+aiSetup :: IO GameState
+aiSetup = do
   putStr "Enter Player's Name: "
   hFlush stdout
-  player1 <- getLine 
+  player1 <- getLine
   let player2 = bot
   putStrLn $ "AI opponenet is called: " <> player2
   putStr "Choose a player to go first (X): "
@@ -162,21 +165,50 @@ updateGameState _board (_name1, _name2) (_score1, _score2) (_token1, _token2) _g
     , go = _go
     }
 
-aiLoop :: String -> StateT GameState IO () 
-aiLoop msg = do 
-  current <- get 
+aiLoop :: String -> StateT GameState IO ()
+aiLoop msg = do
+  current <- get
   let currentPlayer = playerToGoName (go current) (game current)
-  case currentPlayer of 
-    p | p == bot -> aiAlgo 
+  case currentPlayer of
+    p | p == bot -> do stillPlaying <- aiAlgo 
+                       case stillPlaying of 
+                        Left _ -> aiLoop "The AI is selecting the wrong coordinate...." 
+                        Right bl -> when bl $ aiLoop ""
     _ -> do stillPlaying <- playerGo msg
-            case stillPlaying of 
-              Left err -> aiLoop err 
+            case stillPlaying of
+              Left err -> aiLoop err
               Right bl -> when bl $ aiLoop ""
 
-aiAlgo :: StateT GameState IO ()
-aiAlgo = undefined
+randomSelect :: [Int] -> IO Int
+randomSelect xs = (!!) xs <$> randomRIO (0, length xs - 1)
+
+aiAlgo :: StateT GameState IO (Either Msg Bool)
+aiAlgo = do
+  current <- get
+  let (Game player bot) = game current
+      ptoken = token player
+      btoken = token bot
+      _board = board current
+      playerWin = randomSelect <$> checkForWinMve ptoken _board
+      botWin = randomSelect <$> checkForWinMve btoken _board
+      noWin = randomSelect $ boardCoordsLeft _board
+  case botWin of 
+    Just ioInt -> do pos <- liftIO ioInt 
+                     updateBoard pos
+    Nothing -> case playerWin of 
+                Just ioInt -> do pos <- liftIO ioInt 
+                                 updateBoard pos 
+                Nothing -> do pos <- liftIO noWin 
+                              updateBoard pos
+
+boardCoordsLeft :: Board -> [Int] 
+boardCoordsLeft = fmap fst . filtered . coordPos
+  where
+    positions = [[1,2,3],[4,5,6],[7,8,9]] :: [[Int]]
+    coordPos  = zipWith zip positions 
+    filtered  = concatMap (filter (\ x -> snd x == Blank))
 -- Needs to check if there is a win for bot and play win
--- Needs to check if there is a win for player and block 
+-- Needs to check if there is a win for player and block
 -- Needs to randomly pick an available coord
 
 playerGo :: String -> StateT GameState IO (Either Msg Bool)
@@ -191,7 +223,7 @@ playerGo msg = do
     putStr $ playerToGoName (go current) (game current) <> " Enter command: "
     hFlush stdout
   input <- liftIO getLine
-  stillPlaying <- handleInput (toLower <$> input)
+  stillPlaying <- handleInput (toLower <$> input) -- handleInput needs to be before checkGame
   stillGoing <- checkGame
   updateGame stillGoing currentPlayer
   return stillPlaying
@@ -227,33 +259,52 @@ addToPlayersScore t (p1, p2) | token p1 == t = ((+1) $ score p1, score p2)
                              | otherwise     = (score p1, (+1) $ score p2)
 
 checkGame :: StateT GameState IO Bool
-checkGame = do
-  current <- get
-  let _board      = board current
-      checkRows   = any ( \x -> all (== Turn O) x || all (== Turn X) x )
-      topLeft     = (!!0) . (!!0)
-      middle      = (!!1) . (!!1)
-      bottomRight = (!!2) . (!!2)
-      topRight    = (!!0) . (!!2)
-      bottomLeft  = (!!2) . (!!0)
-      diagonals   =
-        [
-        [ topLeft _board, middle _board, bottomRight _board ]
-        ,
-        [ topRight _board, middle _board, bottomLeft _board ]
-        ]
-      allCombinations = _board <> transpose _board <> diagonals
-  return $ checkRows allCombinations
+checkGame = gets $ checkRows . allCombinations . board
+
+checkRows :: [[Coord]] -> Bool
+checkRows   = any ( \x -> all (== Turn O) x || all (== Turn X) x )
+
+checkForWinMve :: Token -> [[Coord]] -> Maybe [Int]
+checkForWinMve token board = case matched2 of
+  []   -> Nothing
+  ints -> Just ints
+  where
+    positions = [[1,2,3],[4,5,6],[7,8,9]]
+    coordPos  = zipWith zip positions board
+    matched2  = mapMaybe (match2 token) (coordPos <> diagonals coordPos)
+
+match2 :: Token -> [(Int, Coord)] -> Maybe Int
+match2 token [a, b, c] | Turn token == snd a && Turn token == snd b = Just $ fst c
+                       | Turn token == snd a && Turn token == snd c = Just $ fst b
+                       | Turn token == snd b && Turn token == snd c = Just $ fst a
+                       | otherwise = Nothing
+
+allCombinations b = b <> transpose b <> diagonals b
+diagonals b =
+  [
+  [ topLeft b, middle b, bottomRight b ]
+  ,
+  [ topRight b, middle b, bottomLeft b ]
+  ]
+  where
+    topLeft     = (!!0) . (!!0)
+    middle      = (!!1) . (!!1)
+    bottomRight = (!!2) . (!!2)
+    topRight    = (!!0) . (!!2)
+    bottomLeft  = (!!2) . (!!0)
 
 handleInput :: String -> StateT GameState IO (Either Msg Bool)
 handleInput "exit" = return $ Right False
 handleInput "help" = return $ Left help
 handleInput input  =
   if input `elem` ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
-  then do
+  then updateBoard (read input :: Int)
+  else return $ Left (input <> " -- is not a valid command\n" <> help)
+
+updateBoard :: Int -> StateT GameState IO (Either Msg Bool)
+updateBoard coord = do 
     current <- get
-    let coord         = read input :: Int
-        _go           = go current
+    let _go           = go current
         _board        = board current
         joinBoard     = join _board
         replace n b g = take (n-1) b <> [g] <> drop n b
@@ -262,10 +313,9 @@ handleInput input  =
                         , go    = switch _go
                         }
             return $ Right True
-    else return $ Left (input <> " has already been selected\n")
-  else return $ Left (input <> " -- is not a valid command\n" <> help)
+    else return $ Left (show coord <> " has already been selected\n")
 
-computer :: Board -> Board 
+computer :: Board -> Board
 computer = undefined
 
 help :: String
