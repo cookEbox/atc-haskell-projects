@@ -1,17 +1,16 @@
 module Main where
 
-import           Control.Monad       (join, when)
+import           Control.Monad       (join, when, void)
 import           Control.Monad.State (StateT, evalStateT, get, gets, liftIO,
                                       put)
 import           Data.Bifunctor      (Bifunctor (bimap))
 import           Data.Char           (toLower)
-import           Data.IORef          (IORef, newIORef, readIORef, writeIORef)
 import           Data.List           (transpose)
 import           Data.List.Split     (chunksOf)
+import           Data.Maybe          (mapMaybe)
 import           System.IO           (hFlush, stdout)
 import           System.Process      (callCommand)
 import           System.Random       (randomRIO)
-import Data.Maybe (mapMaybe)
 
 type Msg = String
 
@@ -46,6 +45,8 @@ instance Show Player where
 
 data Game = Game Player Player
 
+data WDC = Win | Draw | CarryOn deriving Eq
+
 instance Show Game where
   show (Game p1 p2) = unlines $ zipWith (<>) (padColumns . lines $ show p1) (lines $ show p2)
 
@@ -60,7 +61,7 @@ padRight n str = str ++ replicate (n - length str) ' '
 data Coord = Turn Token | Blank deriving Eq
 
 instance Show Coord where
-  show (Turn token) = show token
+  show (Turn _token) = show _token
   show Blank        = " "
 
 data Token = X | O deriving Eq
@@ -88,7 +89,9 @@ printGame :: Board -> IO ()
 printGame = putStrLn . (<>) "\n" . unlines . addLines . fmap printRow . numbered
   where
     printRow [x,y,z] = " " <> x <> " | " <> y <> " | " <> z
+    printRow _       = ""
     addLines [f,s,t] = [f, hor, s, hor, t ]
+    addLines _       = []
     numbered         = zipWith2 ifB [["1","2","3"],["4","5","6"],["7","8","9"]]
     ifB n b          = if b == Blank then n else show b
     hor              = "--- --- ---"
@@ -150,6 +153,7 @@ playerSetup = do
     p | p == player2 -> newBoard (player1, player2) False
     _                -> playerSetup
 
+newBoard :: Monad m => (String, String) -> Bool -> m GameState 
 newBoard (player1, player2) True
   = return $ updateGameState blankBoard (player1, player2) (0,0) (X,O) X
 newBoard (player1, player2) False
@@ -170,67 +174,81 @@ aiLoop msg = do
   current <- get
   let currentPlayer = playerToGoName (go current) (game current)
   case currentPlayer of
-    p | p == bot -> do stillPlaying <- aiAlgo 
-                       case stillPlaying of 
-                        Left _ -> aiLoop "The AI is selecting the wrong coordinate...." 
+    p | p == bot -> do stillPlaying <- aiAlgo
+                       case stillPlaying of
+                        Left _msg -> aiLoop _msg
                         Right bl -> when bl $ aiLoop ""
     _ -> do stillPlaying <- playerGo msg
             case stillPlaying of
               Left err -> aiLoop err
               Right bl -> when bl $ aiLoop ""
 
-randomSelect :: [Int] -> IO Int
-randomSelect xs = (!!) xs <$> randomRIO (0, length xs - 1)
+randomSelect :: [Int] -> Maybe (IO Int)
+randomSelect [] = Nothing
+randomSelect xs = Just $ (!!) xs <$> randomRIO (0, length xs - 1)
 
 aiAlgo :: StateT GameState IO (Either Msg Bool)
 aiAlgo = do
   current <- get
-  let (Game player bot) = game current
+  let (Game player _bot) = game current
       currentPlayer = go current
       ptoken = token player
-      btoken = token bot
+      btoken = token _bot
       _board = board current
-      playerWin = randomSelect <$> checkForWinMve ptoken _board
-      botWin = randomSelect <$> checkForWinMve btoken _board
+      botWin = randomSelect =<< checkForWinMve btoken _board
+      playerWin = randomSelect =<< checkForWinMve ptoken _board
       noWin = randomSelect $ boardCoordsLeft _board
-  case botWin of 
-    Just ioInt -> do pos <- liftIO ioInt 
-                     updateBoard pos
-                     stillGoing <- checkGame
+  case botWin of
+    Just ioInt -> do pos <- liftIO ioInt
+                     void $ updateBoard pos
+                     stillGoing <- winDrawCarryOn
                      updateGame stillGoing currentPlayer
-                     return $ Right True
-    Nothing -> case playerWin of 
-                Just ioInt -> do pos <- liftIO ioInt 
-                                 updateBoard pos 
-                Nothing -> do pos <- liftIO noWin 
-                              updateBoard pos
+                     return $ Left ""
+    Nothing -> case playerWin of
+                Just ioInt -> do 
+                  pos <- liftIO ioInt
+                  void $ updateBoard pos
+                  stillGoing <- winDrawCarryOn
+                  updateGame stillGoing currentPlayer
+                  return $ Left ""
+                Nothing -> case noWin of 
+                  Nothing -> return $ Left "No moves left, it's a draw" 
+                  Just ioInt  -> do 
+                    pos <- liftIO ioInt
+                    void $ updateBoard pos
+                    stillGoing <- winDrawCarryOn
+                    updateGame stillGoing currentPlayer
+                    return $ Left "" 
 
-boardCoordsLeft :: Board -> [Int] 
-boardCoordsLeft = fmap fst . filtered . coordPos
+boardCoordsLeft :: Board -> [Int]
+boardCoordsLeft = fmap fst . filter (isBlank . snd) . concat . zipWith zip positions
   where
-    positions = [[1,2,3],[4,5,6],[7,8,9]] :: [[Int]]
-    coordPos  = zipWith zip positions 
-    filtered  = concatMap (filter (\ x -> snd x == Blank))
--- Needs to check if there is a win for bot and play win
--- Needs to check if there is a win for player and block
--- Needs to randomly pick an available coord
+    positions     = [[1,2,3],[4,5,6],[7,8,9]] :: [[Int]]
+    isBlank Blank = True
+    isBlank _     = False
 
 playerGo :: String -> StateT GameState IO (Either Msg Bool)
 playerGo msg = do
   current <- get
   let currentPlayer = go current
+      playerName = playerToGoName (go current) (game current) <> " Enter command: "
   liftIO $ do
     callCommand "clear"
     print $ game current
     printGame $ board current
     putStrLn msg
-    putStr $ playerToGoName (go current) (game current) <> " Enter command: "
+    putStr playerName
     hFlush stdout
   input <- liftIO getLine
   stillPlaying <- handleInput (toLower <$> input) -- handleInput needs to be before checkGame
-  stillGoing <- checkGame
+  stillGoing <- winDrawCarryOn
+  liftIO $ printWinner stillGoing playerName
   updateGame stillGoing currentPlayer
   return stillPlaying
+
+printWinner :: WDC -> String -> IO () 
+printWinner Win _name = putStrLn $ _name <> " Won!!!!!"
+printWinner _ _ = return ()
 
 playerLoop :: String -> StateT GameState IO ()
 playerLoop msg = do
@@ -247,20 +265,32 @@ playerToGoName _go = name
   where
     listOfPlayers (Game p1 p2) = [p1,p2]
 
-updateGame :: Bool -> Token -> StateT GameState IO ()
-updateGame False _ = return ()
-updateGame True player = do
+updateGame :: WDC -> Token -> StateT GameState IO ()
+updateGame CarryOn _ = return ()
+updateGame wd player = do
   current <- get
   let playersTuple (Game p1 p2) = (p1, p2)
+      inc    = if wd == Win then 1 else 0
       _game  = game current
       names  = join bimap name $ playersTuple _game
-      scores = addToPlayersScore player $ playersTuple _game
+      scores = addToPlayersScore inc player $ playersTuple _game
       tokens = join bimap switch $ join bimap token $ playersTuple _game
   put $ updateGameState blankBoard names scores tokens (switch $ go current)
 
-addToPlayersScore :: Token -> (Player, Player) -> (Int, Int)
-addToPlayersScore t (p1, p2) | token p1 == t = ((+1) $ score p1, score p2)
-                             | otherwise     = (score p1, (+1) $ score p2)
+addToPlayersScore :: Int -> Token -> (Player, Player) -> (Int, Int)
+addToPlayersScore inc t (p1, p2) | token p1 == t = ((+inc) $ score p1, score p2)
+                                 | otherwise     = (score p1, (+inc) $ score p2)
+
+winDrawCarryOn :: StateT GameState IO WDC 
+winDrawCarryOn = wdc <$> checkGame <*> allMoves
+
+wdc :: Bool -> Bool -> WDC
+wdc wins draws | wins      = Win
+               | draws     = Draw
+               | otherwise = CarryOn
+
+allMoves :: StateT GameState IO Bool 
+allMoves = gets $ notElem Blank . concat . board
 
 checkGame :: StateT GameState IO Bool
 checkGame = gets $ checkRows . allCombinations . board
@@ -269,21 +299,25 @@ checkRows :: [[Coord]] -> Bool
 checkRows   = any ( \x -> all (== Turn O) x || all (== Turn X) x )
 
 checkForWinMve :: Token -> [[Coord]] -> Maybe [Int]
-checkForWinMve token board = case matched2 of
+checkForWinMve _token _board = case matched2 of
   []   -> Nothing
   ints -> Just ints
   where
     positions = [[1,2,3],[4,5,6],[7,8,9]]
-    coordPos  = zipWith zip positions board
-    matched2  = mapMaybe (match2 token) (coordPos <> diagonals coordPos)
+    coordPos  = zipWith zip positions _board
+    matched2  = mapMaybe (match2 _token) (coordPos <> diagonals coordPos)
 
 match2 :: Token -> [(Int, Coord)] -> Maybe Int
-match2 token [a, b, c] | Turn token == snd a && Turn token == snd b = Just $ fst c
-                       | Turn token == snd a && Turn token == snd c = Just $ fst b
-                       | Turn token == snd b && Turn token == snd c = Just $ fst a
-                       | otherwise = Nothing
+match2 _token [a, b, c] | Turn _token == snd a && Turn _token == snd b && snd c == Blank = Just $ fst c
+                        | Turn _token == snd a && Turn _token == snd c && snd b == Blank = Just $ fst b
+                        | Turn _token == snd b && Turn _token == snd c && snd a == Blank = Just $ fst a
+                        | otherwise = Nothing
+match2 _ _ = Nothing
 
+allCombinations :: [[a]] -> [[a]]
 allCombinations b = b <> transpose b <> diagonals b
+
+diagonals :: [[a]] -> [[a]]
 diagonals b =
   [
   [ topLeft b, middle b, bottomRight b ]
@@ -306,7 +340,7 @@ handleInput input  =
   else return $ Left (input <> " -- is not a valid command\n" <> help)
 
 updateBoard :: Int -> StateT GameState IO (Either Msg Bool)
-updateBoard coord = do 
+updateBoard coord = do
     current <- get
     let _go           = go current
         _board        = board current
