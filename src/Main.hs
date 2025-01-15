@@ -186,6 +186,7 @@ aiAlgo :: StateT GameState IO (Either Msg Bool)
 aiAlgo = do
   current <- get
   let (Game player bot) = game current
+      currentPlayer = go current
       ptoken = token player
       btoken = token bot
       _board = board current
@@ -195,6 +196,9 @@ aiAlgo = do
   case botWin of 
     Just ioInt -> do pos <- liftIO ioInt 
                      updateBoard pos
+                     stillGoing <- checkGame
+                     updateGame stillGoing currentPlayer
+                     return $ Right True
     Nothing -> case playerWin of 
                 Just ioInt -> do pos <- liftIO ioInt 
                                  updateBoard pos 
