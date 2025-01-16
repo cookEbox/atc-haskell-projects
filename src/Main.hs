@@ -4,7 +4,7 @@ import           Control.Monad       (join, when, void)
 import           Control.Monad.State (StateT, evalStateT, get, gets, liftIO,
                                       put)
 import           Data.Bifunctor      (Bifunctor (bimap))
-import           Data.Char           (toLower)
+import           Data.Char           (toLower, toUpper)
 import           Data.List           (transpose)
 import           Data.List.Split     (chunksOf)
 import           Data.Maybe          (mapMaybe)
@@ -192,6 +192,7 @@ aiAlgo = do
   current <- get
   let (Game player _bot) = game current
       currentPlayer = go current
+      playerName = playerToGoName (go current) (game current) 
       ptoken = token player
       btoken = token _bot
       _board = board current
@@ -202,23 +203,41 @@ aiAlgo = do
     Just ioInt -> do pos <- liftIO ioInt
                      void $ updateBoard pos
                      stillGoing <- winDrawCarryOn
+                     new <- get
                      updateGame stillGoing currentPlayer
+                     liftIO $ botWinner stillGoing playerName new
                      return $ Left ""
     Nothing -> case playerWin of
                 Just ioInt -> do 
                   pos <- liftIO ioInt
                   void $ updateBoard pos
                   stillGoing <- winDrawCarryOn
+                  new <- get 
                   updateGame stillGoing currentPlayer
+                  liftIO $ botWinner stillGoing playerName new
                   return $ Left ""
                 Nothing -> case noWin of 
-                  Nothing -> return $ Left "No moves left, it's a draw" 
+                  Nothing -> do 
+                    stillGoing <- winDrawCarryOn
+                    new <- get 
+                    updateGame stillGoing currentPlayer
+                    liftIO $ botWinner stillGoing playerName new
+                    return $ Left ""
                   Just ioInt  -> do 
                     pos <- liftIO ioInt
                     void $ updateBoard pos
                     stillGoing <- winDrawCarryOn
                     updateGame stillGoing currentPlayer
                     return $ Left "" 
+
+botWinner :: WDC -> String -> GameState -> IO () 
+botWinner stillGoing playerName current = do 
+  let _game = game current 
+      _board = board current 
+  callCommand "clear"
+  print _game 
+  printGame _board 
+  printWinner stillGoing playerName
 
 boardCoordsLeft :: Board -> [Int]
 boardCoordsLeft = fmap fst . filter (isBlank . snd) . concat . zipWith zip positions
@@ -231,13 +250,13 @@ playerGo :: String -> StateT GameState IO (Either Msg Bool)
 playerGo msg = do
   current <- get
   let currentPlayer = go current
-      playerName = playerToGoName (go current) (game current) <> " Enter command: "
+      playerName = playerToGoName (go current) (game current) 
   liftIO $ do
     callCommand "clear"
     print $ game current
     printGame $ board current
     putStrLn msg
-    putStr playerName
+    putStr $ playerName <> " Enter command: "
     hFlush stdout
   input <- liftIO getLine
   stillPlaying <- handleInput (toLower <$> input) -- handleInput needs to be before checkGame
@@ -246,8 +265,17 @@ playerGo msg = do
   updateGame stillGoing currentPlayer
   return stillPlaying
 
-printWinner :: WDC -> String -> IO () 
-printWinner Win _name = putStrLn $ _name <> " Won!!!!!"
+printWinner :: WDC -> String -> IO ()
+printWinner Win _name = do 
+  putStrLn $ toUpper <$> _name <> " WON!!!!!\nPress Enter to continue"
+  hFlush stdout
+  _ <- getLine
+  return ()
+printWinner Draw _name = do 
+  putStrLn "It was a Draw!"
+  hFlush stdout
+  _ <- getLine
+  return ()
 printWinner _ _ = return ()
 
 playerLoop :: String -> StateT GameState IO ()
@@ -305,7 +333,7 @@ checkForWinMve _token _board = case matched2 of
   where
     positions = [[1,2,3],[4,5,6],[7,8,9]]
     coordPos  = zipWith zip positions _board
-    matched2  = mapMaybe (match2 _token) (coordPos <> diagonals coordPos)
+    matched2  = mapMaybe (match2 _token) (allCombinations coordPos)
 
 match2 :: Token -> [(Int, Coord)] -> Maybe Int
 match2 _token [a, b, c] | Turn _token == snd a && Turn _token == snd b && snd c == Blank = Just $ fst c
