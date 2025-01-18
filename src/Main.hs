@@ -12,6 +12,10 @@ import           System.IO           (hFlush, stdout)
 import           System.Process      (callCommand)
 import           System.Random       (randomRIO)
 
+{-
+  Types
+-}
+
 type Msg = String
 
 bot :: String
@@ -97,6 +101,10 @@ printGame = putStrLn . (<>) "\n" . unlines . addLines . fmap printRow . numbered
     hor              = "--- --- ---"
     zipWith2         = zipWith . zipWith
 
+{-
+  Main function
+-}
+
 main :: IO ()
 main = do
   putStrLn "Welcome to Tic Tac Toe!"
@@ -106,6 +114,10 @@ main = do
               evalStateT (playerLoop "") initial
     AI  -> do initial <- aiSetup
               evalStateT (aiLoop "") initial
+
+{-
+  Supporting/Setup Functions
+-}
 
 playerOrAI :: IO GameType
 playerOrAI = do
@@ -153,21 +165,9 @@ playerSetup = do
     p | p == player2 -> newBoard (player1, player2) False
     _                -> playerSetup
 
-newBoard :: Monad m => (String, String) -> Bool -> m GameState 
-newBoard (player1, player2) True
-  = return $ updateGameState blankBoard (player1, player2) (0,0) (X,O) X
-newBoard (player1, player2) False
-  = return $ updateGameState blankBoard (player1, player2) (0,0) (O,X) X
-
-updateGameState :: Board -> (String, String) -> (Int, Int) -> (Token,Token) -> Token -> GameState
-updateGameState _board (_name1, _name2) (_score1, _score2) (_token1, _token2) _go =
-  GameState
-    { game = Game
-    ( Player { _id = A, name = _name1, score = _score1, token = _token1 } )
-    ( Player { _id = B, name = _name2, score = _score2, token = _token2 } )
-    , board = _board
-    , go = _go
-    }
+{-
+  AI 
+-}
 
 aiLoop :: String -> StateT GameState IO ()
 aiLoop msg = do
@@ -232,12 +232,9 @@ botWinner stillGoing playerName current = do
   printGame _board 
   printWinner stillGoing playerName
 
-boardCoordsLeft :: Board -> [Int]
-boardCoordsLeft = fmap fst . filter (isBlank . snd) . concat . zipWith zip positions
-  where
-    positions     = [[1,2,3],[4,5,6],[7,8,9]] :: [[Int]]
-    isBlank Blank = True
-    isBlank _     = False
+{-
+  Player
+-}
 
 playerGo :: String -> StateT GameState IO (Either Msg Bool)
 playerGo msg = do
@@ -286,6 +283,32 @@ playerToGoName _go = name
   where
     listOfPlayers (Game p1 p2) = [p1,p2]
 
+{-
+  Shared Functions 
+-}
+
+newBoard :: Monad m => (String, String) -> Bool -> m GameState 
+newBoard (player1, player2) True
+  = return $ updateGameState blankBoard (player1, player2) (0,0) (X,O) X
+newBoard (player1, player2) False
+  = return $ updateGameState blankBoard (player1, player2) (0,0) (O,X) X
+
+updateGameState :: Board -> (String, String) -> (Int, Int) -> (Token,Token) -> Token -> GameState
+updateGameState _board (_name1, _name2) (_score1, _score2) (_token1, _token2) _go =
+  GameState
+    { game = Game
+    ( Player { _id = A, name = _name1, score = _score1, token = _token1 } )
+    ( Player { _id = B, name = _name2, score = _score2, token = _token2 } )
+    , board = _board
+    , go = _go
+    }
+
+boardCoordsLeft :: Board -> [Int]
+boardCoordsLeft = fmap fst . filter (isBlank . snd) . concat . zipWith zip positions
+  where
+    positions     = [[1,2,3],[4,5,6],[7,8,9]] :: [[Int]]
+    isBlank Blank = True
+    isBlank _     = False
 updateGame :: WDC -> Token -> StateT GameState IO ()
 updateGame CarryOn _ = return ()
 updateGame wd player = do
