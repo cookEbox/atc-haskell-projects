@@ -17,5 +17,6 @@ pkgs.mkShell {
 
   shellHook = ''
     cabal update
+    export TMPDIR=/tmp
   '';
 }
