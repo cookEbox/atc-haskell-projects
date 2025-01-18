@@ -271,25 +271,30 @@ getDate id = runSqlite "tasks.db" $ do
   task <- get (toSqlKey id :: Key Task)
   return $ task >>= taskDueDate
 
-dayParse :: String -> Maybe Day
+dayParse :: String -> Either String Day
 dayParse sDay = case parse dayParser "day" sDay of 
-  Left err -> Nothing -- this error is lost and not printed to the terminal (could be an improvement)
-  Right day -> day
+  Left err -> Left $ "Failed to parse date: " ++ show err
+  Right (Just day) -> Right day
+  Right Nothing -> Left "No date!" 
 
-editDate :: Maybe Day -> IO (Maybe Day) 
+editDate :: Maybe Day -> IO (Either String (Maybe Day)) 
 editDate oldDay = runInputT defaultSettings $ do 
   minput <- getInputLineWithInitial "Edit the date: " (printDay oldDay, "")
   case minput of 
-    Nothing -> pure Nothing
-    Just day -> pure $ dayParse day
+    Nothing  -> pure $ Right Nothing
+    Just day -> case dayParse day of 
+      Left err -> pure $ Left err 
+      Right d  -> pure $ Right (Just d)
   where printDay Nothing = ""
         printDay (Just dy) = show dy
 
 dateTask :: MonadIO m => Id -> Maybe Day -> Action m
 dateTask id mDay@(Just _) = update (toSqlKey id :: Key Task) [TaskDueDate =. mDay]
 dateTask id Nothing = do 
-  newDate <- liftIO mDate 
-  update (toSqlKey id :: Key Task) [TaskDueDate =. newDate] 
+  result <- liftIO mDate 
+  case result of 
+    Left err -> liftIO $ putStrLn err 
+    Right newDate -> update (toSqlKey id :: Key Task) [TaskDueDate =. newDate]
   where mDate = do 
           oldDate <- getDate id 
           case oldDate of 

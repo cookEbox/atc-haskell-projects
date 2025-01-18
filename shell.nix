@@ -6,9 +6,8 @@ pkgs.mkShell {
     pkgs.haskellPackages.ghc
     pkgs.haskellPackages.ghcid
     pkgs.haskellPackages.cabal-install
-    pkgs.haskellPackages.zlib
     pkgs.zlib
-    pkgs.sqlite
+    pkgs.sqlite.dev
     pkgs.rlwrap
   ];
   nativeBuildInputs = [
