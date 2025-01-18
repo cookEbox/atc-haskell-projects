@@ -7,7 +7,7 @@ import           Data.Bifunctor      (Bifunctor (bimap))
 import           Data.Char           (toLower, toUpper)
 import           Data.List           (transpose)
 import           Data.List.Split     (chunksOf)
-import           Data.Maybe          (mapMaybe)
+import           Data.Maybe          (mapMaybe, isJust)
 import           System.IO           (hFlush, stdout)
 import           System.Process      (callCommand)
 import           System.Random       (randomRIO)
@@ -199,36 +199,29 @@ aiAlgo = do
       botWin = randomSelect =<< checkForWinMve btoken _board
       playerWin = randomSelect =<< checkForWinMve ptoken _board
       noWin = randomSelect $ boardCoordsLeft _board
-  case botWin of
-    Just ioInt -> do pos <- liftIO ioInt
-                     void $ updateBoard pos
-                     stillGoing <- winDrawCarryOn
-                     new <- get
-                     updateGame stillGoing currentPlayer
-                     liftIO $ botWinner stillGoing playerName new
-                     return $ Left ""
-    Nothing -> case playerWin of
-                Just ioInt -> do 
-                  pos <- liftIO ioInt
-                  void $ updateBoard pos
-                  stillGoing <- winDrawCarryOn
-                  new <- get 
-                  updateGame stillGoing currentPlayer
-                  liftIO $ botWinner stillGoing playerName new
-                  return $ Left ""
-                Nothing -> case noWin of 
-                  Nothing -> do 
-                    stillGoing <- winDrawCarryOn
-                    new <- get 
-                    updateGame stillGoing currentPlayer
-                    liftIO $ botWinner stillGoing playerName new
-                    return $ Left ""
-                  Just ioInt  -> do 
-                    pos <- liftIO ioInt
-                    void $ updateBoard pos
-                    stillGoing <- winDrawCarryOn
-                    updateGame stillGoing currentPlayer
-                    return $ Left "" 
+  winBlockCarryOn currentPlayer playerName botWin playerWin noWin
+
+winBlockCarryOn :: Token 
+                -> String 
+                -> Maybe (IO Int) 
+                -> Maybe (IO Int) 
+                -> Maybe (IO Int) 
+                -> StateT GameState IO (Either Msg Bool) 
+winBlockCarryOn currentPlayer playerName win block carryOn = do 
+  case wbc of 
+    Nothing -> return $ Left "This is a draw"
+    Just ioInt -> do
+      pos <- liftIO ioInt
+      void $ updateBoard pos
+      stillGoing <- winDrawCarryOn
+      new <- get
+      updateGame stillGoing currentPlayer
+      liftIO $ botWinner stillGoing playerName new
+      return $ Right True
+  where 
+    wbc | isJust win = win 
+        | isJust block = block 
+        | otherwise = carryOn
 
 botWinner :: WDC -> String -> GameState -> IO () 
 botWinner stillGoing playerName current = do 
@@ -380,9 +373,6 @@ updateBoard coord = do
                         }
             return $ Right True
     else return $ Left (show coord <> " has already been selected\n")
-
-computer :: Board -> Board
-computer = undefined
 
 help :: String
 help = join [ "TIC TAC TOE HELP MENU\n"
