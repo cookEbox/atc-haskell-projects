@@ -107,6 +107,7 @@ printGame = putStrLn . (<>) "\n" . unlines . addLines . fmap printRow . numbered
 
 main :: IO ()
 main = do
+  callCommand "clear"
   putStrLn "Welcome to Tic Tac Toe!"
   gameType <- playerOrAI
   case gameType of
@@ -137,15 +138,7 @@ aiSetup = do
   player1 <- getLine
   let player2 = bot
   putStrLn $ "AI opponenet is called: " <> player2
-  putStr "Choose a player to go first (X): "
-  hFlush stdout
-  firstPlayer <- getLine
-  case firstPlayer of
-    "1"              -> newBoard (player1, player2) True
-    "2"              -> newBoard (player1, player2) False
-    p | p == player1 -> newBoard (player1, player2) True
-    p | p == player2 -> newBoard (player1, player2) False
-    _                -> aiSetup
+  choosePlayerX "" player1 player2
 
 playerSetup :: IO GameState
 playerSetup = do
@@ -156,14 +149,34 @@ playerSetup = do
   hFlush stdout
   player2 <- getLine
   putStr "Choose a player to go first (X): "
+  choosePlayerX "" player1 player2
+
+choosePlayerX :: String -> String -> String -> IO GameState
+choosePlayerX msg player1 player2 = do 
+  putStrLn msg
+  putStr "Choose a player to go first (X): "
   hFlush stdout
   firstPlayer <- getLine
-  case firstPlayer of
-    "1"              -> newBoard (player1, player2) True
-    "2"              -> newBoard (player1, player2) False
-    p | p == player1 -> newBoard (player1, player2) True
-    p | p == player2 -> newBoard (player1, player2) False
-    _                -> playerSetup
+  playerX player1 player2 firstPlayer
+
+playerX :: String -> String -> String -> IO GameState 
+playerX player1 player2 "1" = newBoard (player1, player2) True
+playerX player1 player2 "2" = newBoard (player1, player2) False
+playerX player1 player2 p | _p == _player1 = newBoard (player1, player2) True
+                          | _p == _player2 = newBoard (player1, player2) False
+                          | otherwise      = choosePlayerX msg player1 player2
+                            where 
+                              _p       = toLower <$> p
+                              _player1 = toLower <$> player1
+                              _player2 = toLower <$> player2
+                              msg      = p <> " is not a valid input please choose"
+                                           <> " 1, 2 or type the player name!\n"
+
+newBoard :: Monad m => (String, String) -> Bool -> m GameState 
+newBoard (player1, player2) True
+  = return $ updateGameState blankBoard (player1, player2) (0,0) (X,O) X
+newBoard (player1, player2) False
+  = return $ updateGameState blankBoard (player1, player2) (0,0) (O,X) X
 
 {-
   AI 
@@ -286,12 +299,6 @@ playerToGoName _go = name
 {-
   Shared Functions 
 -}
-
-newBoard :: Monad m => (String, String) -> Bool -> m GameState 
-newBoard (player1, player2) True
-  = return $ updateGameState blankBoard (player1, player2) (0,0) (X,O) X
-newBoard (player1, player2) False
-  = return $ updateGameState blankBoard (player1, player2) (0,0) (O,X) X
 
 updateGameState :: Board -> (String, String) -> (Int, Int) -> (Token,Token) -> Token -> GameState
 updateGameState _board (_name1, _name2) (_score1, _score2) (_token1, _token2) _go =
