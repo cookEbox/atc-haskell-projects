@@ -132,9 +132,8 @@ aiSetup = do
   putStr "Enter Player's Name: "
   hFlush stdout
   player1 <- getLine
-  let player2 = bot
-  putStrLn $ "AI opponenet is called: " <> player2
-  choosePlayerX "" player1 player2
+  putStrLn $ "AI opponenet is called: " <> bot
+  choosePlayerX "" player1 bot
 
 playerSetup :: IO GameState
 playerSetup = do
