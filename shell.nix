@@ -12,6 +12,7 @@ pkgs.mkShell {
   ];
   nativeBuildInputs = [
     pkgs.haskellPackages.haskell-language-server
+    pkgs.zlib.dev
   ];
 
   shellHook = ''

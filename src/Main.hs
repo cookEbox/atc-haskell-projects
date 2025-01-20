@@ -162,7 +162,7 @@ commands cmd = parse ( try addParser
                    <|> try priorityParser
                    <|> try editParser
                    <|> try helpParser
-                     ) "test" lowerCMD
+                     ) cmd lowerCMD
   where
     lowerCMD = toLower <$> cmd
 
