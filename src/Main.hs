@@ -68,11 +68,7 @@ instance Show Coord where
   show (Turn _token) = show _token
   show Blank        = " "
 
-data Token = X | O deriving Eq
-
-instance Show Token where
-  show X = "X"
-  show O = "O"
+data Token = X | O deriving (Eq, Show)
 
 switch :: Token -> Token
 switch O = X
@@ -316,6 +312,7 @@ boardCoordsLeft = fmap fst . filter (isBlank . snd) . concat . zipWith zip posit
     positions     = [[1,2,3],[4,5,6],[7,8,9]] :: [[Int]]
     isBlank Blank = True
     isBlank _     = False
+
 updateGame :: WDC -> Token -> StateT GameState IO ()
 updateGame CarryOn _ = return ()
 updateGame wd player = do
