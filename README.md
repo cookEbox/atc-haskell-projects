@@ -76,28 +76,25 @@ Test the CLI by typing in commands and interacting with the recursive prompt.
 
 ## Rubric:
 
-### Basic Functionality (40 points):
-- Two-player mode (15 points)
-- Board display and updating (10 points)
-- Win/draw detection (10 points)
-- Game restart option (5 points)
-
-### Advanced Features (Optional - 20 points):
-- AI opponent (10 points)
-- Customizable player marks (5 points)
-- Scoring system (5 points)
-
-### User Interface (20 points):
-- Board clarity and player information (10 points)
-- Help menu (10 points)
-
-### Error Handling (10 points):
-- Prevention of invalid moves (5 points)
-- Graceful handling of input errors (5 points)
-
-### Code Quality (30 points):
-- Modular design (10 points)
-- Code cleanliness and readability (10 points)
-- Use of Haskell best practices (10 points)
-
-**Total: 120 points (100 if advanced features are not implemented)**
+| **Category**          | **Criteria**                                  | **Points** | **Score** |
+|----------------------|----------------------------------------------|------------|----------|
+| **Basic Functionality (40 points)** | | | |
+|                      | Two-player mode                             | 15         | 15         |
+|                      | Board display and updating                  | 10         | 10         |
+|                      | Win/draw detection                          | 10         | 10         |
+|                      | Game restart option                         | 5          | 5         |
+| **Advanced Features (Optional - 20 points)** | | | |
+|                      | AI opponent                                 | 10         | 10         |
+|                      | Customizable player marks                   | 5          | 5         |
+|                      | Scoring system                              | 5          | 5         |
+| **User Interface (20 points)** | | | |
+|                      | Board clarity and player information        | 10         | 10         |
+|                      | Help menu                                   | 10         | 10         |
+| **Error Handling (10 points)** | | | |
+|                      | Prevention of invalid moves                 | 5          | 5         |
+|                      | Graceful handling of input errors           | 5          | 5         |
+| **Code Quality (30 points)** | | | |
+|                      | Modular design                              | 10         | 10         |
+|                      | Code cleanliness and readability            | 10         | 10         |
+|                      | Use of Haskell best practices               | 10         | 9.5 (try not to use show instances for writing to the user)        |
+| **Total**            | *(100 points if advanced features are not implemented, 120 if they are)* | **100** | **119.5** |
