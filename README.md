@@ -24,7 +24,7 @@ You will also want to use the next command to have awareness of types and functi
 ob hoogle
 ```
 
-Then navigate to [http://localhost:8080]http://localhost:8080. This is a custom version of hoogle (https://hoogle.haskell.org/) with all the packages listed in your .cabal files
+Then navigate to http://localhost:8080. This is a custom version of hoogle (https://hoogle.haskell.org/) with all the packages listed in your .cabal files
 
 ## Software Requirements
 
