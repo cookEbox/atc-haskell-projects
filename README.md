@@ -18,6 +18,14 @@ You can also run the program in an Obelisk REPL using [GHCi](https://downloads.h
 ob repl
 ```
 
+You will also want to use the next command to have awareness of types and functions at your disposal, in particular from Reflex and Obelisk libraries
+
+```bash
+ob hoogle
+```
+
+Then navigate to [http://localhost:8080]http://localhost:8080. This is a custom version of hoogle (https://hoogle.haskell.org/) with all the packages listed in your .cabal files
+
 ## Software Requirements
 
 ### Basic Functionality:
