@@ -82,30 +82,29 @@ Test the CLI by typing in commands and interacting with the recursive prompt.
 
 ## Rubric:
 
-### Basic Functionality (40 points):
-- Adding a task (10 points)
-- Viewing tasks (5 points)
-- Marking a task as complete (10 points)
-- Deleting a task (10 points)
-- Editing a task (5 points)
+# Task Manager Grading Rubric
 
-### Advanced Features (Optional - 20 points):
-- Task prioritization (5 points)
-- Due dates and sorting (5 points)
-- Filtering tasks by status (5 points)
-- Command-line options for non-interactive mode (5 points)
-
-### User Interface (20 points):
-- Help menu (10 points)
-- Overall usability and intuitiveness (10 points)
-
-### Error Handling (10 points):
-- Graceful handling of invalid input (5 points)
-- User-friendly error messages (5 points)
-
-### Code Quality (30 points):
-- Modular design (10 points)
-- Code cleanliness and readability (10 points)
-- Use of Haskell best practices (10 points)
-
-**Total: 120 points (100 if advanced features are not implemented)**
+| **Category**          | **Criteria**                                  | **Points** | **Score** |
+|----------------------|----------------------------------------------|------------|----------|
+| **Basic Functionality (40 points)** | | | |
+|                      | Adding a task                               | 10         | 8 (Missing input validation on priority)        |
+|                      | Viewing tasks                              | 5          | 5         |
+|                      | Marking a task as complete                 | 10         | 8 (Priority is missing, extra space in string)         |
+|                      | Deleting a task                            | 10         | 8 (Should show the task list before deleting, and should show details of task before deleting (ask for confirmation)        |
+|                      | Editing a task                             | 5          | 5         |
+| **Advanced Features (Optional - 20 points)** | | | |
+|                      | Task prioritization                        | 5          | 5         |
+|                      | Due dates and sorting                      | 5          | 0         |
+|                      | Filtering tasks by status                  | 5          | 5         |
+|                      | Command-line options for non-interactive mode | 5      | 0         |
+| **User Interface (20 points)** | | | |
+|                      | Help menu                                  | 10         | 10         |
+|                      | Overall usability and intuitiveness        | 10         | 10         |
+| **Error Handling (10 points)** | | | |
+|                      | Graceful handling of invalid input         | 5          | 4         |
+|                      | User-friendly error messages               | 5          | 5         |
+| **Code Quality (30 points)** | | | |
+|                      | Modular design                             | 10         | 9 (some reusability, but overall great work here)         |
+|                      | Code cleanliness and readability           | 10         | 10         |
+|                      | Use of Haskell best practices              | 10         | 8 (ensure state is valid at all time)         |
+| **Total**            | *(100 points if advanced features are not implemented, 120 if they are)* | **100** | **100** |
