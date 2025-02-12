@@ -15,6 +15,8 @@ library
                , obelisk-route
                , reflex-dom-core
                , text
+               , aeson 
+               , safe
   exposed-modules:
     Frontend
   ghc-options: -Wall -O -fno-show-valid-hole-fits
@@ -35,6 +37,8 @@ executable frontend
                , obelisk-frontend
                , obelisk-route
                , reflex-dom
+               , aeson
+               , safe
   ghc-options: -Wall -O -fno-show-valid-hole-fits -threaded
                -- unsafe code
                -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields

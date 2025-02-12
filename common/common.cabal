@@ -8,6 +8,7 @@ library
   build-depends: base
                , obelisk-route
                , text
+               , aeson
   exposed-modules:
     Common.Api
     Common.Route

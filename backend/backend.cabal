@@ -12,6 +12,9 @@ library
                , frontend
                , obelisk-backend
                , obelisk-route
+               , snap 
+               , io-streams 
+               , bytestring
   exposed-modules:
     Backend
   ghc-options: -Wall -O -fno-show-valid-hole-fits
@@ -41,3 +44,6 @@ executable backend
                , common
                , frontend
                , obelisk-backend
+               , snap 
+               , io-streams 
+               , bytestring
