@@ -26,6 +26,7 @@
           pkgs.haskellPackages.implicit-hie
           pkgs.haskellPackages.cabal-install
           pkgs.haskellPackages.ghc
+          pkgs.sqlite
         ];
       };
     });

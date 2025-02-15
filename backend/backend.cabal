@@ -15,6 +15,10 @@ library
                , snap 
                , io-streams 
                , bytestring
+               , persistent
+               , persistent-template
+               , persistent-sqlite
+               , time
   exposed-modules:
     Backend
   ghc-options: -Wall -O -fno-show-valid-hole-fits
@@ -47,3 +51,7 @@ executable backend
                , snap 
                , io-streams 
                , bytestring
+               , persistent-template
+               , persistent-sqlite
+               , persistent
+               , time

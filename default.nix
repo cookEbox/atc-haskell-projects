@@ -15,22 +15,12 @@
   }
 }:
 with obelisk;
-project ./. ({ pkgs, ... }: {
-  overrides = self: super: let 
-    aesonSrc = pkgs.fetchFromGitHub {
-      owner = "bos";
-      repo = "aeson";
-      rev = "v2.0.0.0";
-      sha256 = "sha256-1cxmxizazi06f82wps7xmxzprn37dzrfzd9rvzy8pqk1gimxa7wm";
-    };
-    aesonPkg = self.callCabal2nix "aeson" aesonSrc {};
-  in 
-  { 
-    # aeson = aesonPkg;
-    inherit (aesonPkg) aeson;
-    android.applicationId = "systems.obsidian.obelisk.examples.minimal";
-    android.displayName = "Obelisk Minimal Example";
-    ios.bundleIdentifier = "systems.obsidian.obelisk.examples.minimal";
-    ios.bundleName = "Obelisk Minimal Example";
+project ./. ({ pkgs, ... }: { 
+  overrides = self: super: {
+    persistent = pkgs.haskell.lib.doJailbreak super.persistent;
   };
+  android.applicationId = "systems.obsidian.obelisk.examples.minimal";
+  android.displayName = "Obelisk Minimal Example";
+  ios.bundleIdentifier = "systems.obsidian.obelisk.examples.minimal";
+  ios.bundleName = "Obelisk Minimal Example";
 })
