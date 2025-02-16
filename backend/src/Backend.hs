@@ -24,16 +24,16 @@ import           Common.Route
 import           Control.Monad.IO.Class  (liftIO)
 import           Data.Aeson              as A
 import qualified Data.ByteString.Lazy    as LBS
-import           Data.Text               (Text)
-import           Data.Time.Clock         (UTCTime)
--- import           Database.Persist                     hiding (Add, count)
-import           Database.Persist.Sql    (runMigration)
+import           Data.Text               (Text, pack)
+import           Data.Time.Clock         (UTCTime, getCurrentTime)
+import           Database.Persist                     hiding (Add, count)
+import           Database.Persist.Sql    (runMigration, insert)
 -- import           Database.Persist.Sql                 (PersistField,
 --                                                        PersistFieldSql,
 --                                                        SqlType (SqlString),
 --                                                        fromSqlKey, runMigration,
 --                                                        sqlType, toSqlKey)
--- import           Database.Persist.SqlBackend.Internal (SqlBackend)
+import           Database.Persist.SqlBackend.Internal (SqlBackend)
 import           Database.Persist.Sqlite (runSqlite)
 import           Database.Persist.TH
 
@@ -43,6 +43,7 @@ import           Obelisk.Backend
 import           Obelisk.Route           as R
 import           Snap
 import qualified System.IO.Streams       as Streams (toList)
+import           Control.Monad.Trans.Reader           (ReaderT)
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 Twats
@@ -51,7 +52,7 @@ Twats
 Twits
     user_id        Int64
     parent_post_id (Maybe Int64)
-    content        String
+    content        Text
     created_at     UTCTime
     deriving Show Eq
 |]
@@ -69,11 +70,14 @@ backend = Backend
 
 backendHandlers :: R BackendRoute -> Snap ()
 backendHandlers = \case
-  BackendRoute_Echo :/ () -> do
+  BackendRoute_Post :/ () -> do
     req <- getRequestBody
     case A.decode req of
       Just (MessageReq input) -> do
-        let response = MessageResp ("Your input was: " <> input)
+        utc <- liftIO getCurrentTime
+        let newTwit = Twits 1 Nothing input utc
+        twitId <- liftIO $ runSqlite "Twits.db" $ insert newTwit
+        let response = MessageResp $ ("Your input was: " <> input <> "\nYour Id is: " <> (pack . show $ twitId)) : []
         modifyResponse $ setHeader "Content-Type" "application/json"
         writeLBS (A.encode response)  -- Send JSON response to frontend
 
@@ -81,6 +85,14 @@ backendHandlers = \case
         modifyResponse $ setResponseStatus 400 "Bad Request"
         modifyResponse $ setHeader "Content-Type" "application/json"
         writeLBS "{\"error\": \"Invalid JSON\"}"  -- Send error response
+
+  BackendRoute_Get :/ () -> do
+    (eTwits) <- liftIO $ runSqlite "Twits.db" $ selectList [] [Desc TwitsCreated_at]
+    let twits = (\(Entity _ t) -> t) <$> eTwits
+        response = MessageResp $ fmap (twitsContent) twits
+    modifyResponse $ setHeader "Content-Type" "application/json"
+    writeLBS (A.encode response)  -- Send JSON response to frontend
+
 
   BackendRoute_Missing :/ () -> do
     liftIO $ putStrLn "404: Route not found"

@@ -19,6 +19,7 @@ library
                , persistent-template
                , persistent-sqlite
                , time
+               , transformers
   exposed-modules:
     Backend
   ghc-options: -Wall -O -fno-show-valid-hole-fits
@@ -55,3 +56,4 @@ executable backend
                , persistent-sqlite
                , persistent
                , time
+               , transformers

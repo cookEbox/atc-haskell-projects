@@ -41,24 +41,17 @@ frontend = Frontend
     input <- inputElement def
     submitBtn <- button "Send to Backend"
     let reqEvent = tag (current $ fmap (\t -> MessageReq t) $ _inputElement_value input) submitBtn
-    void $ prerender (pure ()) $ do
-      respEvent <- performRequestAsync $ fmap (postJson $ "http://localhost:8000/" <> echoPath) reqEvent
-      let respText = fmap (MessageResp . fromJustDef "" . _xhrResponse_responseText) respEvent
-      dynText =<< holdDyn "Waiting for response..." (fmap responseMsg respText)
+
+
+    void <- prerender (pure ()) $ do
+      respEvent <- performRequestAsync $ fmap (postJson $ "http://localhost:8000/" <> post) reqEvent
+      let getReqEvent = (const ()) <$> respEvent
+
+      el "div" $ do 
+        getRespEvent <- performRequestAsync $ fmap (postJson $ "http://localhost:8000/" <> get) getReqEvent
+        let getRespText = fmap (fromJustDef "" . _xhrResponse_responseText) getRespEvent
+        dynText =<< holdDyn "" getRespText
       pure ()
 
-    -- el "h1" $ text "Message Board"
-    -- rec
-    --   void $ el "div" $ simpleList dText $ \d -> el "p" $ dynText d
-    --   let clearEvent = "" <$ eClick
-    --       inputConfig = def & inputElementConfig_setValue .~ clearEvent
-    --   t <- inputElement inputConfig
-    --   eClick <- button "Add Text"
-    --   let eText = tag (current $ _inputElement_value t) eClick
-    --   dText <- foldDyn (\new old -> old ++ [new]) [] eText
-    return ()
+    pure ()
   }
-
-backendReq :: ToJSON a => a -> XhrRequest T.Text
-backendReq inputText = postJson ("http://localhost:8000/" <> echoPath) inputText
-

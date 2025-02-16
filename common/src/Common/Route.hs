@@ -28,8 +28,11 @@ import           Obelisk.Route.TH
 import           Data.Aeson            (FromJSON, ToJSON)
 import           GHC.Generics          (Generic)
 
-echoPath :: Text
-echoPath = "echo" 
+post :: Text
+post = "post" 
+
+get :: Text
+get = "get" 
 
 -- API request/response data type
 data MessageReq = MessageReq { userInput :: Text }
@@ -37,7 +40,7 @@ data MessageReq = MessageReq { userInput :: Text }
 instance ToJSON MessageReq
 instance FromJSON MessageReq
 
-data MessageResp = MessageResp { responseMsg :: Text }
+data MessageResp = MessageResp { responseMsg :: [Text] }
   deriving stock (Show, Eq, Generic)
 instance ToJSON MessageResp
 instance FromJSON MessageResp
@@ -45,7 +48,8 @@ instance FromJSON MessageResp
 data BackendRoute :: * -> * where
   -- | Used to handle unparseable routes.
   BackendRoute_Missing :: BackendRoute ()
-  BackendRoute_Echo :: BackendRoute ()
+  BackendRoute_Post :: BackendRoute ()
+  BackendRoute_Get :: BackendRoute ()
   -- You can define any routes that will be handled specially by the backend here.
   -- i.e. These do not serve the frontend, but do something different, such as serving static files.
 
@@ -59,7 +63,8 @@ fullRouteEncoder = mkFullRouteEncoder
   (FullRoute_Backend BackendRoute_Missing :/ ())
   (\case
       BackendRoute_Missing -> PathSegment "missing" $ unitEncoder mempty
-      BackendRoute_Echo -> PathSegment echoPath $ unitEncoder mempty 
+      BackendRoute_Post -> PathSegment post $ unitEncoder mempty 
+      BackendRoute_Get -> PathSegment get $ unitEncoder mempty 
   )
   (\case
       FrontendRoute_Main -> PathEnd $ unitEncoder mempty)
