@@ -1,2 +1,8 @@
 : 1740241456:0;kill 1017949
 : 1740247289:0;git add .
+: 1740247350:0;git commit -m 'using leftmost to pass multiple event listeners to holdDyn'
+: 1740247354:0;git push
+: 1740247358:0;c
+: 1740247609:0;ls
+: 1740247613:0;rm Twits.db
+: 1740247655:0;git add .

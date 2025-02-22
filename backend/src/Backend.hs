@@ -38,10 +38,10 @@ import           Snap
 import qualified System.IO.Streams       as Streams (toList)
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
-Twats
+Twits
     name Text
     deriving Show
-Twits
+Tweets
     user_id        Int64
     parent_post_id (Maybe Int64)
     content        Text
@@ -67,7 +67,7 @@ backendHandlers = \case
     case A.decode req of
       Just (MessageReq input) -> do
         utc <- liftIO getCurrentTime
-        let newTwit = Twits 1 Nothing input utc
+        let newTwit = Tweets 1 Nothing input utc
         twitId <- liftIO $ runSqlite "Twits.db" $ insert newTwit
         let response = MessageResp $ ("Your input was: " <> input <> "\nYour Id is: " <> (pack . show $ twitId)) : []
         modifyResponse $ setHeader "Content-Type" "application/json"
@@ -79,9 +79,9 @@ backendHandlers = \case
         writeLBS "{\"error\": \"Invalid JSON\"}"  -- Send error response
 
   BackendRoute_Get :/ () -> do
-    (eTwits) <- liftIO $ runSqlite "Twits.db" $ selectList [] [Desc TwitsCreated_at]
-    let twits = (\(Entity _ t) -> t) <$> eTwits
-        response = MessageResp $ fmap (twitsContent) twits
+    (eTweets) <- liftIO $ runSqlite "Twits.db" $ selectList [] [Desc TweetsCreated_at]
+    let tweets = (\(Entity _ t) -> t) <$> eTweets
+        response = MessageResp $ fmap (tweetsContent) tweets
     modifyResponse $ setHeader "Content-Type" "application/json"
     writeLBS (A.encode response)  -- Send JSON response to frontend
 
