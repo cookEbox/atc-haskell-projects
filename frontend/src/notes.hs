@@ -1,22 +1,3 @@
-{-# LANGUAGE CPP                   #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE LambdaCase            #-}
-{-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE PartialTypeSignatures #-}
-{-# LANGUAGE RecursiveDo           #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TemplateHaskell       #-}
-
-module Frontend where
-
-import           Obelisk.Frontend
-import           Obelisk.Generated.Static
-import           Obelisk.Route
-
-import           Reflex.Dom.Core
-
-import           Common.Route
-import           Safe                     (fromJustDef)
 
 frontend :: Frontend (R FrontendRoute)
 frontend = Frontend
@@ -36,17 +17,15 @@ frontend = Frontend
     _ <- prerender (pure ()) $ do
       postBuild <- getPostBuild
       getInitEvent <- performRequestAsync $ fmap (postJson $ "http://localhost:8000/" <> get) postBuild
-      let getInitText  = fmap (fromJustDef "" . _xhrResponse_responseText) getInitEvent
-      -- initDyn <- holdDyn "Loading...." getInitText
-      -- initText <- sample $ current initDyn
       respEvent <- performRequestAsync $ fmap (postJson $ "http://localhost:8000/" <> post) reqEvent
-      let getReqEvent = (const ()) <$> respEvent
+      let getInitText = fmap (fromJustDef "" . _xhrResponse_responseText) getInitEvent
+          getReqEvent = (const ()) <$> respEvent
 
       el "div" $ do
         getRespEvent <- performRequestAsync $ fmap (postJson $ "http://localhost:8000/" <> get) getReqEvent
         let getRespText = fmap (fromJustDef "" . _xhrResponse_responseText) getRespEvent
-        -- dynText =<< holdDyn "" getInitText
-        dynText =<< holdDyn "Loading ...." (leftmost [getInitText, getRespText])
+        dynText =<< holdDyn "" getInitText
+        dynText =<< holdDyn "" getRespText
       pure ()
 
     pure ()

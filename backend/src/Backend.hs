@@ -26,24 +26,16 @@ import           Data.Aeson              as A
 import qualified Data.ByteString.Lazy    as LBS
 import           Data.Text               (Text, pack)
 import           Data.Time.Clock         (UTCTime, getCurrentTime)
-import           Database.Persist                     hiding (Add, count)
-import           Database.Persist.Sql    (runMigration, insert)
--- import           Database.Persist.Sql                 (PersistField,
---                                                        PersistFieldSql,
---                                                        SqlType (SqlString),
---                                                        fromSqlKey, runMigration,
---                                                        sqlType, toSqlKey)
-import           Database.Persist.SqlBackend.Internal (SqlBackend)
+import           Database.Persist        hiding (Add, count)
+import           Database.Persist.Sql    (runMigration)
 import           Database.Persist.Sqlite (runSqlite)
 import           Database.Persist.TH
 
--- import           GHC.Generics                         (Generic)
 import           GHC.Int                 (Int64)
 import           Obelisk.Backend
 import           Obelisk.Route           as R
 import           Snap
 import qualified System.IO.Streams       as Streams (toList)
-import           Control.Monad.Trans.Reader           (ReaderT)
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 Twats
