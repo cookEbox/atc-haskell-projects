@@ -6,3 +6,13 @@
 : 1740247609:0;ls
 : 1740247613:0;rm Twits.db
 : 1740247655:0;git add .
+: 1740247668:0;git commit -m 'some renaming'
+: 1740247670:0;git push
+: 1740266458:0;rm Twits.db
+: 1740237339:0;ls
+: 1740237352:0;..
+: 1740237358:0;touch notes.md
+: 1740237362:3716;v notes.md
+: 1740241084:4;cd atc-haskell-projects
+: 1740241089:27822;n
+: 1740268916:0;git add .

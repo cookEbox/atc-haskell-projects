@@ -35,27 +35,30 @@ get :: Text
 get = "get" 
 
 -- API request/response data type
-data MessageReq = MessageReq { userInput :: Text }
-  deriving stock (Show, Eq, Generic)
+
+data MessageReq = MessageReq 
+  { reqUserName :: Text 
+  , userInput :: Text 
+  } deriving stock (Show, Eq, Generic)
 instance ToJSON MessageReq
 instance FromJSON MessageReq
 
-data MessageResp = MessageResp { responseMsg :: [Text] }
-  deriving stock (Show, Eq, Generic)
+type UserName = Text
+type Msg = Text
+
+data MessageResp = MessageResp 
+  { responseMsg :: [(UserName, Msg)]
+  } deriving stock (Show, Eq, Generic)
 instance ToJSON MessageResp
 instance FromJSON MessageResp
 
 data BackendRoute :: * -> * where
-  -- | Used to handle unparseable routes.
   BackendRoute_Missing :: BackendRoute ()
   BackendRoute_Post :: BackendRoute ()
   BackendRoute_Get :: BackendRoute ()
-  -- You can define any routes that will be handled specially by the backend here.
-  -- i.e. These do not serve the frontend, but do something different, such as serving static files.
 
 data FrontendRoute :: * -> * where
   FrontendRoute_Main :: FrontendRoute ()
-  -- This type is used to define frontend routes, i.e. ones for which the backend will serve the frontend.
 
 fullRouteEncoder
   :: Encoder (Either Text) Identity (R (FullRoute BackendRoute FrontendRoute)) PageName

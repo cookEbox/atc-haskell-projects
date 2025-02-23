@@ -43,6 +43,7 @@ Twits
     deriving Show
 Tweets
     user_id        Int64
+    user_name      Text
     parent_post_id (Maybe Int64)
     content        Text
     created_at     UTCTime
@@ -65,11 +66,14 @@ backendHandlers = \case
   BackendRoute_Post :/ () -> do
     req <- getRequestBody
     case A.decode req of
-      Just (MessageReq input) -> do
+      Just (MessageReq user reqMsg) -> do
         utc <- liftIO getCurrentTime
-        let newTwit = Tweets 1 Nothing input utc
-        twitId <- liftIO $ runSqlite "Twits.db" $ insert newTwit
-        let response = MessageResp $ ("Your input was: " <> input <> "\nYour Id is: " <> (pack . show $ twitId)) : []
+        let newTweet = Tweets 1 user Nothing reqMsg utc
+        tweetId <- liftIO $ runSqlite "Twits.db" $ insert newTweet
+        pure ()
+        let response = MessageResp 
+                        { responseMsg = [(user, ("Your input was: " <> reqMsg <> "\nYour Id is: " <> (pack . show $ tweetId)))]
+                        } 
         modifyResponse $ setHeader "Content-Type" "application/json"
         writeLBS (A.encode response)  -- Send JSON response to frontend
 
@@ -81,10 +85,11 @@ backendHandlers = \case
   BackendRoute_Get :/ () -> do
     (eTweets) <- liftIO $ runSqlite "Twits.db" $ selectList [] [Desc TweetsCreated_at]
     let tweets = (\(Entity _ t) -> t) <$> eTweets
-        response = MessageResp $ fmap (tweetsContent) tweets
+        response = MessageResp 
+                    { responseMsg = (\t -> (tweetsUser_name t, tweetsContent t)) <$> tweets
+                    }
     modifyResponse $ setHeader "Content-Type" "application/json"
     writeLBS (A.encode response)  -- Send JSON response to frontend
-
 
   BackendRoute_Missing :/ () -> do
     liftIO $ putStrLn "404: Route not found"

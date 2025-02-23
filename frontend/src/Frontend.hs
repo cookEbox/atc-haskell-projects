@@ -17,6 +17,10 @@ import           Reflex.Dom.Core
 
 import           Common.Route
 import           Safe                     (fromJustDef)
+import Data.Text as T
+
+userName :: T.Text 
+userName = "Nick"
 
 frontend :: Frontend (R FrontendRoute)
 frontend = Frontend
@@ -30,22 +34,19 @@ frontend = Frontend
 
     input <- inputElement def
     submitBtn <- button "Send to Backend"
-    let reqEvent = tag (current $ fmap (\t -> MessageReq t) $ _inputElement_value input) submitBtn
+    let reqEvent = tag (current $ fmap (\t -> MessageReq userName t) $ _inputElement_value input) submitBtn
 
 
     _ <- prerender (pure ()) $ do
       postBuild <- getPostBuild
       getInitEvent <- performRequestAsync $ fmap (postJson $ "http://localhost:8000/" <> get) postBuild
       let getInitText  = fmap (fromJustDef "" . _xhrResponse_responseText) getInitEvent
-      -- initDyn <- holdDyn "Loading...." getInitText
-      -- initText <- sample $ current initDyn
       respEvent <- performRequestAsync $ fmap (postJson $ "http://localhost:8000/" <> post) reqEvent
       let getReqEvent = (const ()) <$> respEvent
 
       el "div" $ do
         getRespEvent <- performRequestAsync $ fmap (postJson $ "http://localhost:8000/" <> get) getReqEvent
         let getRespText = fmap (fromJustDef "" . _xhrResponse_responseText) getRespEvent
-        -- dynText =<< holdDyn "" getInitText
         dynText =<< holdDyn "Loading ...." (leftmost [getInitText, getRespText])
       pure ()
 
