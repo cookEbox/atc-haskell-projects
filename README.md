@@ -2,7 +2,7 @@
 
 ## How to Run the Application
 
-Install Obelisk if you haven't already. Follow the instructions at https://github.com/obsidiansystems/obelisk?tab=readme-ov-file#installing-obelisk.
+Install Obelisk if you haven't already. Follow the instructions at https://github.com/Ace-Interview-Prep/obelisk?tab=readme-ov-file#installing-obelisk.
 
 Start the Obelisk full-stack server by navigating to the project folder and running in your terminal:
 
