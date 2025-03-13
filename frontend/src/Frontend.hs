@@ -10,16 +10,11 @@
 
 module Frontend where
 
-import qualified Data.Aeson as A (encode, object) 
-import           Data.Aeson      ((.=)) 
 import           Obelisk.Frontend
 import           Obelisk.Generated.Static
 import           Obelisk.Route
 import           Obelisk.Route.Frontend
-import qualified Data.ByteString.Lazy as LBS
-import qualified Data.ByteString as BS
 import           Reflex.Dom.Core
-import Control.Monad.IO.Class (liftIO)
 import           Common.Route
 import           Data.Text                as T
 import           Safe                     (fromJustDef)
@@ -61,13 +56,15 @@ frontend = Frontend
       FrontendRoute_Login -> do
         el "h1" $ text "LOGIN PAGE"
         el "div" $ do 
-          el "label" $ text "Username: "
-          username <- inputElement def 
+          username <- el "div" $ do
+            el "label" $ text "Username: "
+            inputElement def 
 
-          el "label" $ text "Password: " 
-          password <- inputElement $ def 
-                                   & inputElementConfig_elementConfig . elementConfig_initialAttributes 
-                                   .~ ("type" =: "password")
+          password <- el "div" $ do
+            el "label" $ text "Password: " 
+            inputElement $ def 
+                         & inputElementConfig_elementConfig . elementConfig_initialAttributes 
+                         .~ ("type" =: "password")
 
           loginClick <- button "Login"
 
