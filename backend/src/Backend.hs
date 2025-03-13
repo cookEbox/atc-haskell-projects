@@ -40,6 +40,8 @@ import qualified System.IO.Streams       as Streams (toList)
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 Twits
     name Text
+    password Text
+    UniqueTwit name
     deriving Show
 Tweets
     user_id        Int64
@@ -90,6 +92,27 @@ backendHandlers = \case
                     }
     modifyResponse $ setHeader "Content-Type" "application/json"
     writeLBS (A.encode response)  -- Send JSON response to frontend
+
+  BackendRoute_Login :/ () -> do 
+    req <- getRequestBody 
+    case A.decode req of 
+      Just (LoginReq username password) -> do 
+        maybeUser <- liftIO $ runSqlite "Twits.db" $ getBy (UniqueTwit username)
+        case maybeUser of
+          Just (Entity _ twit) ->
+            if twitsPassword twit == password  -- NOT SECURE, BUT WORKS FOR NOW
+              then do
+                modifyResponse $ setHeader "Content-Type" "application/json"
+                writeLBS (A.encode $ LoginResp "Success")
+              else do
+                modifyResponse $ setResponseStatus 401 "Unauthorized"
+                writeLBS "{\"error\": \"Invalid credentials\"}"
+          Nothing -> do
+            modifyResponse $ setResponseStatus 401 "Unauthorized"
+            writeLBS "{\"error\": \"User not found\"}"
+      Nothing -> do
+        modifyResponse $ setResponseStatus 400 "Bad Request"
+        writeLBS "{\"error\": \"Invalid JSON\"}"
 
   BackendRoute_Missing :/ () -> do
     liftIO $ putStrLn "404: Route not found"

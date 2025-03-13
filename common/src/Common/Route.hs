@@ -35,6 +35,18 @@ get :: Text
 get = "get" 
 
 -- API request/response data type
+data LoginReq = LoginReq
+  { loginUsername :: Text
+  , loginPassword :: Text
+  } deriving (Show, Generic)
+instance FromJSON LoginReq
+instance ToJSON LoginReq
+
+data LoginResp = LoginResp
+  { loginMessage :: Text
+  } deriving (Show, Generic)
+instance FromJSON LoginResp
+instance ToJSON LoginResp
 
 data MessageReq = MessageReq 
   { reqUserName :: Text 
@@ -56,21 +68,26 @@ data BackendRoute :: * -> * where
   BackendRoute_Missing :: BackendRoute ()
   BackendRoute_Post :: BackendRoute ()
   BackendRoute_Get :: BackendRoute ()
+  BackendRoute_Login :: BackendRoute ()
 
 data FrontendRoute :: * -> * where
   FrontendRoute_Main :: FrontendRoute ()
+  FrontendRoute_Login :: FrontendRoute ()
 
 fullRouteEncoder
   :: Encoder (Either Text) Identity (R (FullRoute BackendRoute FrontendRoute)) PageName
 fullRouteEncoder = mkFullRouteEncoder
   (FullRoute_Backend BackendRoute_Missing :/ ())
   (\case
-      BackendRoute_Missing -> PathSegment "missing" $ unitEncoder mempty
-      BackendRoute_Post -> PathSegment post $ unitEncoder mempty 
-      BackendRoute_Get -> PathSegment get $ unitEncoder mempty 
+    BackendRoute_Missing -> PathSegment "missing" $ unitEncoder mempty
+    BackendRoute_Post -> PathSegment post $ unitEncoder mempty 
+    BackendRoute_Get -> PathSegment get $ unitEncoder mempty 
+    BackendRoute_Login -> PathSegment "login" $ unitEncoder mempty 
   )
   (\case
-      FrontendRoute_Main -> PathEnd $ unitEncoder mempty)
+    FrontendRoute_Login -> PathEnd $ unitEncoder mempty
+    FrontendRoute_Main -> PathSegment "main" $ unitEncoder mempty
+  )
 
 concat <$> mapM deriveRouteComponent
   [ ''BackendRoute
