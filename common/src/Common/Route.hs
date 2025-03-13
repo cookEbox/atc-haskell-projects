@@ -38,13 +38,13 @@ get = "get"
 data LoginReq = LoginReq
   { loginUsername :: Text
   , loginPassword :: Text
-  } deriving (Show, Generic)
+  } deriving stock (Show, Generic)
 instance FromJSON LoginReq
 instance ToJSON LoginReq
 
 data LoginResp = LoginResp
   { loginMessage :: Text
-  } deriving (Show, Generic)
+  } deriving stock (Show, Generic)
 instance FromJSON LoginResp
 instance ToJSON LoginResp
 
