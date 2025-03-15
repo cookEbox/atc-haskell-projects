@@ -31,6 +31,8 @@ import           Database.Persist.Sql    (runMigration)
 import           Database.Persist.Sqlite (runSqlite)
 import           Database.Persist.TH
 
+import           Crypto.KDF.BCrypt       (hashPassword, validatePassword)
+import           Data.Text.Encoding      (decodeUtf8, encodeUtf8)
 import           GHC.Int                 (Int64)
 import           Obelisk.Backend
 import           Obelisk.Route           as R
@@ -55,6 +57,11 @@ Tweets
 getRequestBody :: MonadSnap m => m LBS.ByteString
 getRequestBody = LBS.fromChunks <$> runRequestBody Streams.toList
 
+hashPasswordSecure :: Text -> IO Text 
+hashPasswordSecure password = do 
+  hashed <- hashPassword 12 (encodeUtf8 password)
+  return $ decodeUtf8 hashed 
+
 backend :: Backend BackendRoute FrontendRoute
 backend = Backend
   { _backend_run = \serve -> do
@@ -73,9 +80,9 @@ backendHandlers = \case
         let newTweet = Tweets 1 user Nothing reqMsg utc
         tweetId <- liftIO $ runSqlite "Twits.db" $ insert newTweet
         pure ()
-        let response = MessageResp 
+        let response = MessageResp
                         { responseMsg = [(user, ("Your input was: " <> reqMsg <> "\nYour Id is: " <> (pack . show $ tweetId)))]
-                        } 
+                        }
         modifyResponse $ setHeader "Content-Type" "application/json"
         writeLBS (A.encode response)  -- Send JSON response to frontend
 
@@ -87,20 +94,20 @@ backendHandlers = \case
   BackendRoute_Get :/ () -> do
     (eTweets) <- liftIO $ runSqlite "Twits.db" $ selectList [] [Desc TweetsCreated_at]
     let tweets = (\(Entity _ t) -> t) <$> eTweets
-        response = MessageResp 
+        response = MessageResp
                     { responseMsg = (\t -> (tweetsUser_name t, tweetsContent t)) <$> tweets
                     }
     modifyResponse $ setHeader "Content-Type" "application/json"
     writeLBS (A.encode response)  -- Send JSON response to frontend
 
-  BackendRoute_Login :/ () -> do 
-    req <- getRequestBody 
-    case A.decode req of 
-      Just (LoginReq username password) -> do 
+  BackendRoute_Login :/ () -> do
+    req <- getRequestBody
+    case A.decode req of
+      Just (LoginReq username password) -> do
         maybeUser <- liftIO $ runSqlite "Twits.db" $ getBy (UniqueTwit username)
         case maybeUser of
           Just (Entity _ twit) ->
-            if twitsPassword twit == password  -- NOT SECURE, BUT WORKS FOR NOW
+            if validatePassword (encodeUtf8 password) (encodeUtf8 $ twitsPassword twit)
               then do
                 modifyResponse $ setHeader "Content-Type" "application/json"
                 writeLBS (A.encode $ LoginResp "Success")
