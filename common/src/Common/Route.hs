@@ -19,11 +19,15 @@ import Prelude hiding (id, (.))
 import Control.Category
 -}
 
+import qualified Data.ByteString.Internal as I
 import           Data.Functor.Identity
 import           Data.Text             (Text)
 
+import Crypto.Hash (SHA256 (SHA256), hashWith)
+import           Data.Text.Encoding      (encodeUtf8)
 import           Obelisk.Route
 import           Obelisk.Route.TH
+import           Data.Text               (pack)
 
 import           Data.Aeson            (FromJSON, ToJSON)
 import           GHC.Generics          (Generic)
@@ -63,6 +67,10 @@ data MessageResp = MessageResp
   } deriving stock (Show, Eq, Generic)
 instance ToJSON MessageResp
 instance FromJSON MessageResp
+
+hashForSending :: Text -> I.ByteString
+hashForSending password =
+  encodeUtf8 $ pack $ show (hashWith SHA256 (encodeUtf8 password))
 
 data BackendRoute :: * -> * where
   BackendRoute_Missing :: BackendRoute ()

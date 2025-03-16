@@ -14,6 +14,7 @@ import           Obelisk.Frontend
 import           Obelisk.Generated.Static
 import           Obelisk.Route
 import           Obelisk.Route.Frontend
+import           Data.Text.Encoding      (decodeUtf8)
 import           Reflex.Dom.Core
 import           Common.Route
 import           Data.Text                as T
@@ -70,7 +71,7 @@ frontend = Frontend
 
           let loginData = tag ( current $ LoginReq
                                        <$> _inputElement_value username 
-                                       <*> _inputElement_value password 
+                                       <*> ((decodeUtf8 . hashForSending) <$> _inputElement_value password)
                               ) loginClick 
 
           _ <- prerender (pure ()) $ do 

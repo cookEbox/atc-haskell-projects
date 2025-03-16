@@ -59,7 +59,7 @@ getRequestBody = LBS.fromChunks <$> runRequestBody Streams.toList
 
 hashPasswordSecure :: Text -> IO Text 
 hashPasswordSecure password = do 
-  hashed <- hashPassword 12 (encodeUtf8 password)
+  hashed <- hashPassword 12 (hashForSending password)
   return $ decodeUtf8 hashed 
 
 backend :: Backend BackendRoute FrontendRoute

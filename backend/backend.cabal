@@ -21,6 +21,7 @@ library
                , time
                , transformers
                , cryptonite
+               , utf8-string
   exposed-modules:
     Backend
   ghc-options: -Wall -O -fno-show-valid-hole-fits
@@ -59,3 +60,4 @@ executable backend
                , time
                , transformers
                , cryptonite
+               , utf8-string
