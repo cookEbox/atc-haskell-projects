@@ -77,10 +77,12 @@ data BackendRoute :: * -> * where
   BackendRoute_Post :: BackendRoute ()
   BackendRoute_Get :: BackendRoute ()
   BackendRoute_Login :: BackendRoute ()
+  BackendRoute_Signup :: BackendRoute ()
 
 data FrontendRoute :: * -> * where
   FrontendRoute_Main :: FrontendRoute ()
   FrontendRoute_Login :: FrontendRoute ()
+  FrontendRoute_Signup :: FrontendRoute ()
 
 fullRouteEncoder
   :: Encoder (Either Text) Identity (R (FullRoute BackendRoute FrontendRoute)) PageName
@@ -91,9 +93,11 @@ fullRouteEncoder = mkFullRouteEncoder
     BackendRoute_Post -> PathSegment post $ unitEncoder mempty 
     BackendRoute_Get -> PathSegment get $ unitEncoder mempty 
     BackendRoute_Login -> PathSegment "login" $ unitEncoder mempty 
+    BackendRoute_Signup -> PathSegment "newuser" $ unitEncoder mempty 
   )
   (\case
     FrontendRoute_Login -> PathEnd $ unitEncoder mempty
+    FrontendRoute_Signup -> PathSegment "signup" $ unitEncoder mempty
     FrontendRoute_Main -> PathSegment "main" $ unitEncoder mempty
   )
 

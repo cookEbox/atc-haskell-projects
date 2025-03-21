@@ -59,8 +59,13 @@ getRequestBody = LBS.fromChunks <$> runRequestBody Streams.toList
 
 hashPasswordSecure :: Text -> IO Text 
 hashPasswordSecure password = do 
-  hashed <- hashPassword 12 (hashForSending password)
+  hashed <- hashPassword 12 (encodeUtf8 password)
   return $ decodeUtf8 hashed 
+
+storeUser :: Text -> Text -> IO () 
+storeUser username password = do 
+  hashed <- hashPasswordSecure password 
+  runSqlite "Twits.db" $ insert_ (Twits username hashed)
 
 backend :: Backend BackendRoute FrontendRoute
 backend = Backend
@@ -120,6 +125,22 @@ backendHandlers = \case
       Nothing -> do
         modifyResponse $ setResponseStatus 400 "Bad Request"
         writeLBS "{\"error\": \"Invalid JSON\"}"
+
+  BackendRoute_Signup :/ () -> do 
+    req <- getRequestBody 
+    case A.decode req of 
+      Just (LoginReq username password) -> do   
+        maybeUser <- liftIO $ runSqlite "Twits.db" $ getBy (UniqueTwit username)
+        case maybeUser of
+          Just (Entity _ _) -> do
+            modifyResponse $ setResponseStatus 401 "Unauthorized"
+            writeLBS "{\"error\": \"User already exists\"}"
+          Nothing -> do
+            liftIO $ storeUser username password 
+      Nothing -> do
+        modifyResponse $ setResponseStatus 400 "Bad Request"
+        writeLBS "{\"error\": \"Invalid JSON\"}"
+        
 
   BackendRoute_Missing :/ () -> do
     liftIO $ putStrLn "404: Route not found"
