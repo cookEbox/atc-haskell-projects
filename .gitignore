@@ -16,3 +16,5 @@ TAGS
 static.out
 notes.md
 Twits.d*
+.envrc
+.direnv/

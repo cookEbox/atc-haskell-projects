@@ -16,9 +16,17 @@
         inherit system;
         terms.security.acme.acceptTerms = true;
       };
+
+      # authSecret = builtins.getEnv "AUTH_SECRET";
+      #
+      # wrappedBackend = pkgs.writeShellSciptBin "backend" ''
+      #   export AUTH_SECRET="${authSecret}"
+      #   exec ${obelisk.project.backend}/bin/backend
+      # '';
     in
     {
       inherit obelisk;
+      # packages.backend = wrappedBackend;
       devShells.default = pkgs.mkShell {
         nativeBuildInputs = [
           obelisk.command
@@ -27,6 +35,7 @@
           pkgs.haskellPackages.cabal-install
           pkgs.haskellPackages.ghc
           pkgs.sqlite
+          pkgs.openssl
         ];
       };
     });

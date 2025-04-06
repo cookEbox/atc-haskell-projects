@@ -13,6 +13,7 @@ library
                , obelisk-backend
                , obelisk-route
                , snap 
+               , snap-core
                , io-streams 
                , bytestring
                , persistent
@@ -22,8 +23,21 @@ library
                , transformers
                , cryptonite
                , utf8-string
+               , base64-bytestring
+               , memory
+               , ghc
   exposed-modules:
     Backend
+  other-modules:
+    Routes.Login
+    Routes.Landing
+    Routes.Authentication
+    Routes.Post
+    Routes.Get
+    Routes.Signup
+    Database.DB
+    Common.Authentication 
+
   ghc-options: -Wall -O -fno-show-valid-hole-fits
                -- unsafe code
                -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields
@@ -52,6 +66,7 @@ executable backend
                , frontend
                , obelisk-backend
                , snap 
+               , snap-core
                , io-streams 
                , bytestring
                , persistent-template
@@ -61,3 +76,6 @@ executable backend
                , transformers
                , cryptonite
                , utf8-string
+               , base64-bytestring
+               , memory
+               , ghc
