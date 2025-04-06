@@ -19,6 +19,11 @@ library
                , safe
   exposed-modules:
     Frontend
+  other-modules: 
+    Pages.Login
+    Pages.Signup
+    Pages.Main
+
   ghc-options: -Wall -O -fno-show-valid-hole-fits
                -- unsafe code
                -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields
