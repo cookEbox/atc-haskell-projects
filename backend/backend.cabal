@@ -30,13 +30,11 @@ library
     Backend
   other-modules:
     Routes.Login
-    Routes.Landing
-    Routes.Authentication
-    Routes.Post
-    Routes.Get
+    Routes.Posted
+    Routes.Gotten
     Routes.Signup
     Database.DB
-    Common.Authentication 
+    Shared.Functions
 
   ghc-options: -Wall -O -fno-show-valid-hole-fits
                -- unsafe code
