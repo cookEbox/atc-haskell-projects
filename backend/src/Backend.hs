@@ -30,6 +30,7 @@ backendHandlers = \case
   BackendRoute_Post :/ () -> posted
   BackendRoute_Get :/ () -> gotten
   BackendRoute_Login :/ () -> login
+  BackendRoute_Logout :/ () -> logout
   BackendRoute_Signup :/ () -> signup
   BackendRoute_Missing :/ () -> do
     liftIO $ putStrLn "404: Route not found"

@@ -27,7 +27,7 @@ frontend = Frontend
       el "title" $ text "Twitter Clone"
       elAttr "script" ("type" =: "application/javascript" <> "src" =: $(static "lib.js")) blank
       elAttr "link" ("href" =: $(static "main.css") <> "type" =: "text/css" <> "rel" =: "stylesheet") blank
-  , _frontend_body = do
+  , _frontend_body = do 
     subRoute_ $ \case
       FrontendRoute_Main -> mainPage
       FrontendRoute_Login -> loginPage

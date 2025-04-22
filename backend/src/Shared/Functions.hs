@@ -11,7 +11,6 @@ import qualified Data.ByteString.Base64  as B64
 import qualified Data.ByteString.Char8   as BS8
 import qualified Data.ByteString.Lazy    as LBS
 import           Data.Text               (Text, pack)
-import           Data.Time.Clock         (addUTCTime, getCurrentTime)
 import           Database.DB
 import           Database.Persist        hiding (Add, count)
 import           Database.Persist.Sqlite (runSqlite)
@@ -66,21 +65,6 @@ super_secret_DELETE = pure "351c52add858652751a8dd19ad5a01c913d628abf41748021765
 getKey :: IO BS.ByteString
 getKey = fmap encodeUtf8 $ pack <$> super_secret_DELETE
 -- getKey = fmap encodeUtf8 $ pack <$> getEnv "AUTH_SECRET"
-
-setAuthCookie :: BS.ByteString -> Snap ()
-setAuthCookie val = do
-  now <- liftIO getCurrentTime
-  let expires = Just $ addUTCTime (60 * 60 * 24 * 7) now  -- 1 week
-      cookie = Cookie
-        { cookieName     = "auth"
-        , cookieValue    = val
-        , cookieExpires  = expires
-        , cookieDomain   = Nothing
-        , cookiePath     = Just "/"
-        , cookieSecure   = False
-        , cookieHttpOnly = True       -- inaccessible to JS
-        }
-  modifyResponse $ addResponseCookie cookie
 
 handleAuthCheck :: Snap ()
 handleAuthCheck = do

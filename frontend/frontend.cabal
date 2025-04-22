@@ -17,6 +17,7 @@ library
                , text
                , aeson 
                , safe
+               , time
   exposed-modules:
     Frontend
   other-modules: 
@@ -44,6 +45,7 @@ executable frontend
                , reflex-dom
                , aeson
                , safe
+               , time
   ghc-options: -Wall -O -fno-show-valid-hole-fits -threaded
                -- unsafe code
                -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields

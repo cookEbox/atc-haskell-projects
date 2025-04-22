@@ -31,6 +31,7 @@ data BackendRoute :: * -> * where
   BackendRoute_Post :: BackendRoute ()
   BackendRoute_Get :: BackendRoute ()
   BackendRoute_Login :: BackendRoute ()
+  BackendRoute_Logout :: BackendRoute ()
   BackendRoute_Signup :: BackendRoute ()
 
 data FrontendRoute :: * -> * where
@@ -47,6 +48,7 @@ fullRouteEncoder = mkFullRouteEncoder
     BackendRoute_Post -> PathSegment post $ unitEncoder mempty
     BackendRoute_Get -> PathSegment get $ unitEncoder mempty
     BackendRoute_Login -> PathSegment "login" $ unitEncoder mempty
+    BackendRoute_Logout -> PathSegment "logout" $ unitEncoder mempty
     BackendRoute_Signup -> PathSegment "newuser" $ unitEncoder mempty
   )
   (\case
