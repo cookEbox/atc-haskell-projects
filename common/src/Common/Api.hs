@@ -55,6 +55,7 @@ instance ToJSON LoginResp
 data MessageReq = MessageReq
   { reqUserName :: Text
   , userInput   :: Text
+  , reqAuthUserId :: Text
   } deriving stock (Show, Eq, Generic)
 instance ToJSON MessageReq
 instance FromJSON MessageReq

@@ -3,12 +3,10 @@
 module Shared.Functions where
 
 import           Common.Api
-import           Control.Monad.IO.Class  (liftIO)
 import           Data.Aeson              as A
 import           Data.ByteArray          (convert)
 import qualified Data.ByteString         as BS
 import qualified Data.ByteString.Base64  as B64
-import qualified Data.ByteString.Char8   as BS8
 import qualified Data.ByteString.Lazy    as LBS
 import           Data.Text               (Text, pack)
 import           Database.DB
@@ -20,6 +18,7 @@ import           Crypto.KDF.BCrypt       (hashPassword)
 import           Crypto.MAC.HMAC
 import           Data.Text.Encoding      (decodeUtf8, encodeUtf8)
 import           Snap
+import Maybes (isJust)
 -- import           System.Environment      (getEnv)
 import qualified System.IO.Streams       as Streams (toList)
 
@@ -66,19 +65,7 @@ getKey :: IO BS.ByteString
 getKey = fmap encodeUtf8 $ pack <$> super_secret_DELETE
 -- getKey = fmap encodeUtf8 $ pack <$> getEnv "AUTH_SECRET"
 
-handleAuthCheck :: Snap ()
-handleAuthCheck = do
-  mCookie <- getCookie "auth"
-  case mCookie of
-    Nothing -> writeLBS "No token"
-    Just c -> do
-      key <- liftIO (BS8.pack <$> super_secret_DELETE )
-      -- key <- liftIO (BS8.pack <$> getEnv "AUTH_SECRET")
-      let encoded = cookieValue c
-      case B64.decode encoded of
-        Left _ -> writeBS "Invalid base64"
-        Right raw ->
-          case verifyToken key (pack . BS8.unpack $ raw) of
-            Nothing  -> writeBS "Invalid signature"
-            Just tok -> writeBS $ encodeUtf8 (authUserId tok)
-
+validateAuthToken :: Text -> IO Bool 
+validateAuthToken token = do 
+  key <- getKey
+  pure $ isJust (verifyToken key token)

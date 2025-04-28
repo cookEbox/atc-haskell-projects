@@ -17,22 +17,27 @@ posted :: Snap ()
 posted = do
   req <- getRequestBody
   case A.decode req of
-    Just (MessageReq user reqMsg) -> do
-      utc <- liftIO getCurrentTime
-      let newTweet = Tweets 1 user Nothing reqMsg utc
-      tweetId <- liftIO $ runSqlite "Twits.db" $ insert newTweet
-      let response = MessageResp
-                      { responseMsg = [
-                                        ( user, ( "Your input was: "
-                                                <> reqMsg
-                                                <> "\nYour Id is: "
-                                                <> (pack . show $ tweetId)
-                                                )
-                                        )
-                                      ]
-                      }
-      modifyResponse $ setHeader "Content-Type" "application/json"
-      writeLBS (A.encode response)  -- Send JSON response to frontend
+    Just (MessageReq user reqMsg authToken) -> do
+      authorised <- liftIO $ validateAuthToken authToken 
+      if authorised 
+      then do
+        utc <- liftIO getCurrentTime
+        let newTweet = Tweets 1 user Nothing reqMsg utc
+        tweetId <- liftIO $ runSqlite "Twits.db" $ insert newTweet
+        let response = MessageResp
+                        { responseMsg = [
+                                          ( user, ( "Your input was: "
+                                                  <> reqMsg
+                                                  <> "\nYour Id is: "
+                                                  <> (pack . show $ tweetId)
+                                                  )
+                                          )
+                                        ]
+                        }
+        modifyResponse $ setHeader "Content-Type" "application/json"
+        writeLBS (A.encode response)  -- Send JSON response to frontend
+      else 
+        writeLBS "{\"error\": \"Invalid Authorisation Token\"}"  -- Send error response
 
     Nothing -> do
       modifyResponse $ setResponseStatus 400 "Bad Request"

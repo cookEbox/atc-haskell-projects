@@ -24,6 +24,8 @@ library
     Pages.Login
     Pages.Signup
     Pages.Main
+    General.Functions
+    General.Buttons
 
   ghc-options: -Wall -O -fno-show-valid-hole-fits
                -- unsafe code
