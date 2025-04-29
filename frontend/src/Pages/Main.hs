@@ -1,15 +1,15 @@
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE GADTs                 #-}
-{-# LANGUAGE KindSignatures        #-}
-{-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE KindSignatures      #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Pages.Main where
 
 import           Common.Api
 import           Common.Route
+import           Data.Maybe                  (fromMaybe)
 import           Data.Text                   as T
-import Data.Maybe (fromMaybe)
 import           General.Functions
 import           Language.Javascript.JSaddle (liftJSM)
 import           Obelisk.Frontend
@@ -18,15 +18,11 @@ import           Obelisk.Route.Frontend
 import           Reflex.Dom.Core
 import           Safe                        (fromJustDef)
 
-userName :: T.Text
-userName = "Dave"
-
-authCookiesEvent :: MonadWidget t m => Event t () -> m (Event t (Maybe Text))
-authCookiesEvent click = do
+selectCookies :: MonadWidget t m => Event t () -> m (Event t (Maybe (Text, Text)))
+selectCookies click = do
   authEvent <- performEvent $ ffor click $ \_ -> do
     cookieText <- liftJSM getCookies
-    pure (parseAuth cookieText)
-
+    pure (parseCookie cookieText)
   pure authEvent
 
 mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m => RoutedT t () m ()
@@ -37,14 +33,13 @@ mainPage = do
   submitBtn <- button "Send to Backend"
 
   _ <- prerender (pure ()) $ do
-    authEventMaybe <- authCookiesEvent submitBtn
-    let authEvent = fromMaybe "" <$> authEventMaybe
+    nameAndAuthEventMaybe <- selectCookies submitBtn
+    let nameAndAuthEvent = fromMaybe ("here","and here") <$> nameAndAuthEventMaybe
 
     let msgEvent = tagPromptlyDyn (_inputElement_value input) submitBtn
     msgDyn <- holdDyn "" msgEvent
-    let msgBehaviour = current msgDyn
 
-    let reqEvent = attachWith (\msg auth -> MessageReq userName msg auth) msgBehaviour authEvent
+    let reqEvent = attachWith (\msg (auth,username) -> MessageReq username msg auth) (current msgDyn) nameAndAuthEvent
 
     postBuild <- getPostBuild
     getInitEvent <- performRequestAsync $ fmap (postJson $ "http://localhost:8000/" <> get) postBuild

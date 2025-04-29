@@ -3,22 +3,21 @@
 module Shared.Functions where
 
 import           Common.Api
+import           Crypto.Hash.Algorithms  (SHA256)
+import           Crypto.KDF.BCrypt       (hashPassword)
+import           Crypto.MAC.HMAC
 import           Data.Aeson              as A
 import           Data.ByteArray          (convert)
 import qualified Data.ByteString         as BS
 import qualified Data.ByteString.Base64  as B64
 import qualified Data.ByteString.Lazy    as LBS
 import           Data.Text               (Text, pack)
+import           Data.Text.Encoding      (decodeUtf8, encodeUtf8)
 import           Database.DB
 import           Database.Persist        hiding (Add, count)
 import           Database.Persist.Sqlite (runSqlite)
-import           Maybes                  (rightToMaybe)
-import           Crypto.Hash.Algorithms  (SHA256)
-import           Crypto.KDF.BCrypt       (hashPassword)
-import           Crypto.MAC.HMAC
-import           Data.Text.Encoding      (decodeUtf8, encodeUtf8)
+import           Maybes                  (isJust, rightToMaybe)
 import           Snap
-import Maybes (isJust)
 -- import           System.Environment      (getEnv)
 import qualified System.IO.Streams       as Streams (toList)
 
@@ -65,7 +64,7 @@ getKey :: IO BS.ByteString
 getKey = fmap encodeUtf8 $ pack <$> super_secret_DELETE
 -- getKey = fmap encodeUtf8 $ pack <$> getEnv "AUTH_SECRET"
 
-validateAuthToken :: Text -> IO Bool 
-validateAuthToken token = do 
+validateAuthToken :: Text -> IO Bool
+validateAuthToken token = do
   key <- getKey
   pure $ isJust (verifyToken key token)

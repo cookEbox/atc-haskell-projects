@@ -22,14 +22,12 @@ cookieWatcher = do
 statusCookie :: Functor f => f Text -> f Bool
 statusCookie cookieDyn = isInfixOf "status=loggedIn" <$> cookieDyn
 
-authCookie :: Functor f => f Text -> f (Maybe Text) 
-authCookie cookieDyn = parseAuth <$> cookieDyn
-
-parseAuth :: Text -> Maybe Text 
-parseAuth cookieText = 
-  case authEntry of 
-    (entry:_) -> stripPrefix "auth=" (strip entry)
-    _         -> Nothing
+parseCookie :: Text -> Maybe (Text, Text) 
+parseCookie cookieText = 
+  case (authEntry, nameEntry) of 
+    ((entryA:_),(entryN:_)) -> (,) <$> (stripPrefix "auth=" (strip entryA)) <*> (stripPrefix "user=" (strip entryN))
+    _                       -> Nothing
   where 
     cookies = splitOn ";" cookieText 
     authEntry = filter ((isInfixOf "auth=") . strip) cookies
+    nameEntry = filter ((isInfixOf "user=") . strip) cookies
