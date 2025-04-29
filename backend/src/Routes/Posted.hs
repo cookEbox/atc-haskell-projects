@@ -45,11 +45,11 @@ posted = do
                                         ]
                         }
         modifyResponse $ setHeader "Content-Type" "application/json"
-        writeLBS (A.encode response)  -- Send JSON response to frontend
+        writeLBS (A.encode response)  
       else
-        writeLBS $ "{\"error\": \"Invalid Authorisation Token for" <> (LE.encodeUtf8 . LT.fromStrict . pack $ show authorised) <> "\" }"  -- Send error response
+        writeLBS $ "{\"error\": \"Invalid Authorisation Token for" <> (LE.encodeUtf8 . LT.fromStrict $ userName) <> "\" }"  
 
     Nothing -> do
       modifyResponse $ setResponseStatus 400 "Bad Request"
       modifyResponse $ setHeader "Content-Type" "application/json"
-      writeLBS "{\"error\": \"Invalid JSON\"}"  -- Send error response
+      writeLBS "{\"error\": \"Invalid JSON\"}"  
