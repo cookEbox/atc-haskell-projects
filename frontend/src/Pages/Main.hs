@@ -17,6 +17,7 @@ import           Obelisk.Route
 import           Obelisk.Route.Frontend
 import           Reflex.Dom.Core
 import           Safe                        (fromJustDef)
+import General.Buttons
 
 selectCookies :: MonadWidget t m => Event t () -> m (Event t (Maybe (Text, Text)))
 selectCookies click = do
@@ -27,6 +28,7 @@ selectCookies click = do
 
 mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m => RoutedT t () m ()
 mainPage = do
+  logoutButton InAndOut
   el "h1" $ text "Obelisk Echo App"
   el "p" $ text "Enter text and press submit:"
   input <- inputElement def

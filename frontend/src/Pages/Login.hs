@@ -16,7 +16,7 @@ import           Safe                        (fromJustDef)
 
 loginPage :: ObeliskWidget t (R FrontendRoute) m  => RoutedT t () m ()
 loginPage = do
-  logoutButton
+  logoutButton JustOut
 
   el "h1" $ text "LOGIN PAGE"
   el "div" $ do

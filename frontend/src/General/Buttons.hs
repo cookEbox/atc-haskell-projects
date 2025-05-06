@@ -2,7 +2,9 @@
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE OverloadedStrings     #-}
 
-module General.Buttons (logoutButton) where
+module General.Buttons ( logoutButton 
+                       , LogInAndOut (JustOut, InAndOut) 
+                       ) where
 
 import           Common.Route
 import           Data.Aeson                  (ToJSON)
@@ -20,8 +22,10 @@ logoutEvent :: ( MonadJSM (Performable m)
 logoutEvent logoutClick = do
     performRequestAsync $ fmap (postJson $ "http://localhost:8000/" <> "logout") logoutClick
 
-logoutButton :: ObeliskWidget t (R FrontendRoute) m  => RoutedT t () m ()
-logoutButton = el "div" $ do
+data LogInAndOut = JustOut | InAndOut deriving Eq
+
+logoutButton :: ObeliskWidget t (R FrontendRoute) m  => LogInAndOut -> RoutedT t () m ()
+logoutButton logInAndOut = el "div" $ do
   _ <- prerender (pure ()) $ do
     cookieDyn <- cookieWatcher
     let showButton = statusCookie cookieDyn
@@ -34,6 +38,13 @@ logoutButton = el "div" $ do
           _ <- logoutEvent logoutClick
           pure ()
         pure ()
-      else blank
+      else if logInAndOut == InAndOut 
+           then loginPageButton 
+           else blank
   pure ()
+
+loginPageButton :: ( DomBuilder t m , SetRoute t (R FrontendRoute) m) => m ()
+loginPageButton = do
+  loginPageClick <- button "Login"
+  setRoute $ (FrontendRoute_Login :/ ()) <$ loginPageClick
 
