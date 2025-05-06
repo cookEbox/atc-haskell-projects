@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingStrategies    #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE OverloadedStrings     #-}
@@ -22,7 +23,7 @@ logoutEvent :: ( MonadJSM (Performable m)
 logoutEvent logoutClick = do
     performRequestAsync $ fmap (postJson $ "http://localhost:8000/" <> "logout") logoutClick
 
-data LogInAndOut = JustOut | InAndOut deriving Eq
+data LogInAndOut = JustOut | InAndOut deriving stock Eq
 
 logoutButton :: ObeliskWidget t (R FrontendRoute) m  => LogInAndOut -> RoutedT t () m ()
 logoutButton logInAndOut = el "div" $ do
