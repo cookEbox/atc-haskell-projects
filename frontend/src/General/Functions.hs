@@ -52,42 +52,31 @@ parseCookie cookieText =
       userVal = listToMaybe [val | entry <- cookies, Just val <- [stripPrefix "user=" entry]]
   in (,) <$> authVal <*> userVal
 
-
 data AppState t = AppState
   { appLoggedIn     :: Dynamic t (Maybe (Text, Text))
   , triggerLoggedIn :: Maybe (Text, Text) -> IO ()
   }
 
-flattenDyn
-  :: Reflex t
-  => Dynamic t (Dynamic t a)
-  -> Dynamic t a
+flattenDyn :: Reflex t => Dynamic t (Dynamic t a) -> Dynamic t a
 flattenDyn dd =
   (\mp -> mp ! ()) <$> joinDynThroughMap (singleton () <$> dd)
 
-initial
-  :: ObeliskWidget t (R FrontendRoute) m
-  => m (Dynamic t (Maybe (Text, Text)))
+initial :: ObeliskWidget t (R FrontendRoute) m => m (Dynamic t (Maybe (Text, Text)))
 initial = do
   nestedDyn <- prerender
-    (pure $ constDyn $ Just ("Hello","Nick"))
+    (pure $ constDyn Nothing)
     (do
       cookieDyn       <- cookieWatcher
       let parsedDyn    = fmap (statusCookieMaybe >=> parseCookie) cookieDyn
-      firstParsedE    <- headE  $ fmapMaybe id (updated parsedDyn)
+      firstParsedE    <- headE $ fmapMaybe id (updated parsedDyn)
       oneAndDoneDyn   <- holdDyn Nothing (Just <$> firstParsedE)
       pure oneAndDoneDyn
     )
   pure $ flattenDyn nestedDyn
 
-buildAppState
-  :: forall t m. ObeliskWidget t (R FrontendRoute) m
-  => m (AppState t)
+buildAppState :: forall t m. ObeliskWidget t (R FrontendRoute) m => m (AppState t)
 buildAppState = do
   initialLoggedIn <- initial
-
-  performEvent_ $ ffor (updated initialLoggedIn) $ \val ->
-    liftIO $ putStrLn ("initialLoggedIn updated: " <> show val)
 
   (loginEvent, triggerLogin) <- newTriggerEvent
   loginStateDyn <- holdDyn Nothing $ leftmost
