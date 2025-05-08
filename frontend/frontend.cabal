@@ -18,6 +18,7 @@ library
                , aeson 
                , safe
                , time
+               , containers
   exposed-modules:
     Frontend
   other-modules: 
@@ -48,6 +49,7 @@ executable frontend
                , aeson
                , safe
                , time
+               , containers
   ghc-options: -Wall -O -fno-show-valid-hole-fits -threaded
                -- unsafe code
                -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields

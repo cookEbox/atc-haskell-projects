@@ -1,28 +1,28 @@
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE RecursiveDo           #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TemplateHaskell       #-}
-{-# LANGUAGE KindSignatures        #-}
 
 module Pages.Signup where
 
-import           Common.Route
 import           Common.Api
-import           Data.Text                as T
-import           Data.Text.Encoding       (decodeUtf8)
+import           Common.Route
+import           Data.Text              as T
+import           Data.Text.Encoding     (decodeUtf8)
 import           Obelisk.Frontend
 import           Obelisk.Route
 import           Obelisk.Route.Frontend
 import           Reflex.Dom.Core
-import           Safe                     (fromJustDef)
+import           Safe                   (fromJustDef)
 
-signupPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m => RoutedT t () m () 
-signupPage = do 
+signupPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m => RoutedT t () m ()
+signupPage = do
   el "hi" $ text "Signup page"
   el "div" $ do
     username <- el "div" $ do
@@ -42,14 +42,14 @@ signupPage = do
                    .~ ("type" =: "password")
 
     let sameValue = (==) <$> _inputElement_value password <*> _inputElement_value sndPassword
-        notEmtpyPassword =  (\x -> T.length x /= 0) <$> _inputElement_value password 
-        notEmtpySndPassword =  (\x -> T.length x /= 0) <$> _inputElement_value sndPassword 
+        notEmtpyPassword =  (\x -> T.length x /= 0) <$> _inputElement_value password
+        notEmtpySndPassword =  (\x -> T.length x /= 0) <$> _inputElement_value sndPassword
         notEmptyPasswords = (&&) <$> notEmtpyPassword <*> notEmtpySndPassword
 
     dynText $ ffor (zipDyn sameValue notEmptyPasswords) $ \(isSame, isNotEmpty) ->
-      if isNotEmpty 
-      then 
-        if isSame 
+      if isNotEmpty
+      then
+        if isSame
         then "✅ Values match"
         else "❌ Values do not match"
       else ""

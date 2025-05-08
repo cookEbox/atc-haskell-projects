@@ -10,6 +10,7 @@ import           Common.Api
 import           Common.Route
 import           Data.Maybe                  (fromMaybe)
 import           Data.Text                   as T
+import           General.Buttons
 import           General.Functions
 import           Language.Javascript.JSaddle (liftJSM)
 import           Obelisk.Frontend
@@ -17,7 +18,6 @@ import           Obelisk.Route
 import           Obelisk.Route.Frontend
 import           Reflex.Dom.Core
 import           Safe                        (fromJustDef)
-import General.Buttons
 
 selectCookies :: MonadWidget t m => Event t () -> m (Event t (Maybe (Text, Text)))
 selectCookies click = do
@@ -26,13 +26,13 @@ selectCookies click = do
     pure (parseCookie cookieText)
   pure authEvent
 
-mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m => RoutedT t () m ()
-mainPage = do
-  logoutButton InAndOut
+mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m => AppState t -> RoutedT t () m ()
+mainPage appState = do
+  logoutButton InAndOut appState
   el "h1" $ text "Obelisk Echo App"
   el "p" $ text "Enter text and press submit:"
   input <- inputElement def
-  submitBtn <- button "Send to Backend"
+  submitBtn <- button "📨"
 
   _ <- prerender (pure ()) $ do
     nameAndAuthEventMaybe <- selectCookies submitBtn
