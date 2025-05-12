@@ -2,12 +2,14 @@
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RecursiveDo         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Pages.Main where
 
 import           Common.Api
 import           Common.Route
+import           Control.Monad               (void)
 import           Data.Maybe                  (fromMaybe)
 import           Data.Text                   as T
 import           General.Buttons
@@ -17,7 +19,6 @@ import           Obelisk.Frontend
 import           Obelisk.Route
 import           Obelisk.Route.Frontend
 import           Reflex.Dom.Core
-import           Safe                        (fromJustDef)
 
 selectCookies :: MonadWidget t m => Event t () -> m (Event t (Maybe (Text, Text)))
 selectCookies click = do
@@ -31,28 +32,37 @@ mainPage appState = do
   logoutButton InAndOut appState
   el "h1" $ text "Obelisk Echo App"
   el "p" $ text "Enter text and press submit:"
-  input <- inputElement def
-  submitBtn <- button "📨"
 
-  _ <- prerender (pure ()) $ do
-    nameAndAuthEventMaybe <- selectCookies submitBtn
-    let nameAndAuthEvent = fromMaybe ("here","and here") <$> nameAndAuthEventMaybe
+  rec
+    respTextDyn <- prerender (pure never) $ do
+      nameAuthEvMaybe <- selectCookies submitBtn
+      let nameAuthEv = fromMaybe ("", "") <$> nameAuthEvMaybe
 
-    let msgEvent = tagPromptlyDyn (_inputElement_value input) submitBtn
-    msgDyn <- holdDyn "" msgEvent
+      let msgEv = tagPromptlyDyn (_inputElement_value input) submitBtn
+      msgDyn <- holdDyn "" msgEv
+      let reqEv = attachPromptlyDynWith
+                    (\msg (auth, user) -> MessageReq user msg auth)
+                    msgDyn
+                    nameAuthEv
 
-    let reqEvent = attachWith (\msg (auth,username) -> MessageReq username msg auth) (current msgDyn) nameAndAuthEvent
+      postbuild <- getPostBuild
+      initResp <- performRequestAsync $ fmap (postJson ("http://localhost:8000/" <> get)) postbuild
+      let initText = fmap (fromMaybe "" . _xhrResponse_responseText) initResp
+      postResp <- performRequestAsync $ fmap (postJson ("http://localhost:8000/" <> post)) reqEv
+      let triggerGet = void postResp
+      getResp <- performRequestAsync $ fmap (postJson ("http://localhost:8000/" <> get)) triggerGet
+      let getText = fmap (fromMaybe "" . _xhrResponse_responseText) getResp
+      pure $ leftmost [initText, getText]
 
-    postBuild <- getPostBuild
-    getInitEvent <- performRequestAsync $ fmap (postJson $ "http://localhost:8000/" <> get) postBuild
-    let getInitText  = fmap (fromJustDef "" . _xhrResponse_responseText) getInitEvent
-    respEvent <- performRequestAsync $ fmap (postJson $ "http://localhost:8000/" <> post) reqEvent
-    let getReqEvent = (const ()) <$> respEvent
+    let respTextEvent = switchDyn respTextDyn
+        clearEvent = "" <$ respTextEvent
 
-    el "div" $ do
-      getRespEvent <- performRequestAsync $ fmap (postJson $ "http://localhost:8000/" <> get) getReqEvent
-      let getRespText = fmap (fromJustDef "" . _xhrResponse_responseText) getRespEvent
-      dynText =<< holdDyn "Loading ...." (leftmost [getInitText, getRespText])
-    pure ()
+    (input, submitBtn) <- el "div" $ do
+      ie <- inputElement $ def & inputElementConfig_setValue .~ clearEvent
+      sb <- button "📨"
+      pure (ie, sb)
+
+    displayDyn <- holdDyn "Loading...." respTextEvent
+    el "div" $ dynText displayDyn
   pure ()
 
