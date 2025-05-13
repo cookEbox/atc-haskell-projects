@@ -28,41 +28,46 @@ selectCookies click = do
   pure authEvent
 
 mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m => AppState t -> RoutedT t () m ()
-mainPage appState = do
+mainPage appState = mdo
   logoutButton InAndOut appState
-  el "h1" $ text "Obelisk Echo App"
+  el "h1" $ text "Twatter App"
   el "p" $ text "Enter text and press submit:"
 
-  rec
-    respTextDyn <- prerender (pure never) $ do
-      nameAuthEvMaybe <- selectCookies submitBtn
-      let nameAuthEv = fromMaybe ("", "") <$> nameAuthEvMaybe
+  (formEl, _) <- elAttr' "form" ("onsubmit" =: "return false;") $ el "div" $ do
+    rec
+      respTextDyn <- prerender (pure never) $ do
+        nameAuthEvMaybe <- selectCookies loginEv
+        let nameAuthEv = fromMaybe ("", "") <$> nameAuthEvMaybe
 
-      let msgEv = tagPromptlyDyn (_inputElement_value input) submitBtn
-      msgDyn <- holdDyn "" msgEv
-      let reqEv = attachPromptlyDynWith
-                    (\msg (auth, user) -> MessageReq user msg auth)
-                    msgDyn
-                    nameAuthEv
+        let msgEv = tagPromptlyDyn (_inputElement_value inputEl) loginEv
+        msgDyn <- holdDyn "" msgEv
+        let reqEv = attachPromptlyDynWith
+                      (\msg (auth, user) -> MessageReq user msg auth)
+                      msgDyn
+                      nameAuthEv
 
-      postbuild <- getPostBuild
-      initResp <- performRequestAsync $ fmap (postJson ("http://localhost:8000/" <> get)) postbuild
-      let initText = fmap (fromMaybe "" . _xhrResponse_responseText) initResp
-      postResp <- performRequestAsync $ fmap (postJson ("http://localhost:8000/" <> post)) reqEv
-      let triggerGet = void postResp
-      getResp <- performRequestAsync $ fmap (postJson ("http://localhost:8000/" <> get)) triggerGet
-      let getText = fmap (fromMaybe "" . _xhrResponse_responseText) getResp
-      pure $ leftmost [initText, getText]
+        postbuild <- getPostBuild
+        initEv <- performRequestAsync $ fmap (postJson ("http://localhost:8000/" <> get)) postbuild
+        let initText = fmap (fromMaybe "" . _xhrResponse_responseText) initEv
+        postEv <- performRequestAsync $ fmap (postJson ("http://localhost:8000/" <> post)) reqEv
+        let triggerGet = void postEv
+        getEv <- performRequestAsync $ fmap (postJson ("http://localhost:8000/" <> get)) triggerGet
+        let getText = fmap (fromMaybe "" . _xhrResponse_responseText) getEv
+        pure $ leftmost [initText, getText]
 
-    let respTextEvent = switchDyn respTextDyn
-        clearEvent = "" <$ respTextEvent
+      let respTextEv = switchDyn respTextDyn
+          enterEv = domEvent Submit formEl
+          nonEmpty = not . T.null <$> _inputElement_value inputEl
+          loginEv = gate (current nonEmpty) enterEv
+          clearEv = "" <$ loginEv
 
-    (input, submitBtn) <- el "div" $ do
-      ie <- inputElement $ def & inputElementConfig_setValue .~ clearEvent
-      sb <- button "📨"
-      pure (ie, sb)
+      inputEl <- el "div" $ do
+        ie <- inputElement $ def & inputElementConfig_setValue .~ clearEv
+        void $ button "📨"
+        pure ie
 
-    displayDyn <- holdDyn "Loading...." respTextEvent
-    el "div" $ dynText displayDyn
+      displayDyn <- holdDyn "Loading...." respTextEv
+      el "div" $ dynText displayDyn
+    pure ()
   pure ()
 
