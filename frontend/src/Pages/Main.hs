@@ -30,7 +30,7 @@ selectCookies click = do
 mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m => AppState t -> RoutedT t () m ()
 mainPage appState = mdo
   logoutButton InAndOut appState
-  el "h1" $ text "Twatter App"
+  el "h1" $ text "Twitter App"
   el "p" $ text "Enter text and press submit:"
 
   (formEl, _) <- elAttr' "form" ("onsubmit" =: "return false;") $ el "div" $ do
