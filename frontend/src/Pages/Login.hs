@@ -32,7 +32,7 @@ loginPage appState = mdo
       usernameEl <- el "div" $ do
         el "label" $ text "Username: "
         inputElement $ def
-          & inputElementConfig_setValue .~ clearEv
+                     & inputElementConfig_setValue .~ clearEv
 
       passwordEl <- el "div" $ do
         el "label" $ text "Password: "
