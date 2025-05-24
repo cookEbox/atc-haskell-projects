@@ -33,7 +33,7 @@ frontend = Frontend
     subRoute_ $ \case
       FrontendRoute_Main -> mainPage appState
       FrontendRoute_Login -> loginPage appState
-      FrontendRoute_Signup -> signupPage
+      FrontendRoute_Signup -> signupPage appState
     pure ()
   }
 
