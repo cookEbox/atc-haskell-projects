@@ -11,7 +11,7 @@ module General.Buttons ( logoutButton
 import           Common.Route
 import           Control.Monad.IO.Class      (liftIO)
 import           Data.Aeson                  (ToJSON)
-import           Data.Maybe                  (isJust)
+import           Data.Maybe                  (isJust, fromMaybe)
 import           Data.Text                   (isInfixOf)
 import           General.Functions
 import           Language.Javascript.JSaddle (MonadJSM, liftJSM)
@@ -19,14 +19,13 @@ import           Obelisk.Frontend
 import           Obelisk.Route
 import           Obelisk.Route.Frontend
 import           Reflex.Dom.Core
-import           Safe                        (fromJustDef)
 
 logoutEvent :: ( MonadJSM (Performable m)
           , PerformEvent t m, TriggerEvent t m
           , ToJSON a
           ) => Event t a -> m (Event t XhrResponse)
 logoutEvent logoutClick = do
-    performRequestAsync $ fmap (postJson $ "http://localhost:8000/" <> "logout") logoutClick
+    performRequestAsync $ fmap (postJson $ "http://localhost:8000/" <> "slogout") logoutClick
 
 data LogInAndOut = JustOut | InAndOut deriving stock Eq
 
@@ -41,7 +40,7 @@ logoutButton logInAndOut appState = el "div" $ do
         _ <- prerender (pure ()) $ do
           logoutClick <- button "Logout"
           logoutResponseEvent <- logoutEvent logoutClick
-          let getResponse = fmap (fromJustDef "" . _xhrResponse_responseText) logoutResponseEvent
+          let getResponse = fmap (fromMaybe "" . _xhrResponse_responseText) logoutResponseEvent
               isSuccess   = isInfixOf "Success"
               failureResp = ffilter (not . isSuccess) getResponse
 

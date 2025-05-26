@@ -14,11 +14,6 @@
 {-# LANGUAGE TypeFamilies          #-}
 module Common.Route where
 
-{- -- You will probably want these imports for composing Encoders.
-import Prelude hiding (id, (.))
-import Control.Category
--}
-
 import           Common.Api
 import           Data.Functor.Identity
 import           Data.Text                (Text)
@@ -44,17 +39,17 @@ fullRouteEncoder
 fullRouteEncoder = mkFullRouteEncoder
   (FullRoute_Backend BackendRoute_Missing :/ ())
   (\case
-    BackendRoute_Missing -> PathSegment "missing" $ unitEncoder mempty
+    BackendRoute_Missing -> PathSegment "smissing" $ unitEncoder mempty
     BackendRoute_Post -> PathSegment post $ unitEncoder mempty
     BackendRoute_Get -> PathSegment get $ unitEncoder mempty
-    BackendRoute_Login -> PathSegment "login" $ unitEncoder mempty
-    BackendRoute_Logout -> PathSegment "logout" $ unitEncoder mempty
-    BackendRoute_Signup -> PathSegment "newuser" $ unitEncoder mempty
+    BackendRoute_Login -> PathSegment "slogin" $ unitEncoder mempty
+    BackendRoute_Logout -> PathSegment "slogout" $ unitEncoder mempty
+    BackendRoute_Signup -> PathSegment "ssignup" $ unitEncoder mempty
   )
   (\case
-    FrontendRoute_Login -> PathEnd $ unitEncoder mempty
+    FrontendRoute_Login -> PathSegment "login" $ unitEncoder mempty
     FrontendRoute_Signup -> PathSegment "signup" $ unitEncoder mempty
-    FrontendRoute_Main -> PathSegment "main" $ unitEncoder mempty
+    FrontendRoute_Main -> PathEnd $ unitEncoder mempty
   )
 
 concat <$> mapM deriveRouteComponent

@@ -10,7 +10,7 @@ module Pages.Main where
 import           Common.Api
 import           Common.Route
 import           Control.Monad               (void)
-import           Data.Maybe                  (fromMaybe)
+import           Data.Maybe                  (fromMaybe, isJust)
 import           Data.Text                   as T
 import           General.Buttons
 import           General.Functions
@@ -62,8 +62,18 @@ mainPage appState = mdo
           clearEv = "" <$ loginEv
 
       inputEl <- el "div" $ do
-        ie <- inputElement $ def & inputElementConfig_setValue .~ clearEv
-        void $ button "📨"
+        let loggedInDyn = isJust <$> appLoggedIn appState
+            attrs = ffor loggedInDyn $ \loggedIn ->
+                      if loggedIn 
+                      then "disabled" =: Nothing
+                      else "disabled" =: Just (pack "true")
+        ie <- inputElement $ def 
+                           & inputElementConfig_setValue .~ clearEv
+                           & inputElementConfig_elementConfig . elementConfig_modifyAttributes .~ (updated attrs)
+        dyn_ $ ffor loggedInDyn $ \loggedIn ->
+          if loggedIn 
+          then void $ button "📨"
+          else blank 
         pure ie
 
       displayDyn <- holdDyn "Loading...." respTextEv

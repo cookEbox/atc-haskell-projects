@@ -58,7 +58,7 @@ loginPage appState = mdo
                           ) loginEvent
 
       void $ prerender (pure ()) $ do
-        resp <- performRequestAsync $ fmap (postJson ("http://localhost:8000/login")) loginReqEv
+        resp <- performRequestAsync $ fmap (postJson ("http://localhost:8000/slogin")) loginReqEv
         let txtEv   = fmap (fromJustDef "" . _xhrResponse_responseText) resp
             success = ffilter ("Success" `T.isInfixOf`) txtEv
             failure = ffilter (not . ("Success" `T.isInfixOf`)) txtEv
