@@ -31,14 +31,11 @@ loginPage appState = mdo
     rec
       usernameEl <- el "div" $ do
         el "label" $ text "Username: "
-        inputElement $ def
-                     & inputElementConfig_setValue .~ clearEv
+        textBox NotPassword clearEv Nothing
 
       passwordEl <- el "div" $ do
         el "label" $ text "Password: "
-        inputElement $ def
-          & inputElementConfig_elementConfig . elementConfig_initialAttributes .~ ("type" =: "password")
-          & inputElementConfig_setValue .~ clearEv
+        textBox Password clearEv Nothing
 
       void $ button "Login"
 
@@ -52,13 +49,13 @@ loginPage appState = mdo
 
           clearEv = "" <$ loginEvent
 
-      let loginReqEv = tagPromptlyDyn (LoginReq
+      let loginReqEv = tagPromptlyDyn (UserDetailsReq
                             <$> _inputElement_value usernameEl
                             <*> (decodeUtf8 . hashForSending <$> _inputElement_value passwordEl)
                           ) loginEvent
 
       void $ prerender (pure ()) $ do
-        resp <- performRequestAsync $ fmap (postJson ("http://localhost:8000/slogin")) loginReqEv
+        resp <- sendRequest "slogin" loginReqEv
         let txtEv   = fmap (fromJustDef "" . _xhrResponse_responseText) resp
             success = ffilter ("Success" `T.isInfixOf`) txtEv
             failure = ffilter (not . ("Success" `T.isInfixOf`)) txtEv

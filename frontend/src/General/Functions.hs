@@ -10,13 +10,14 @@ module General.Functions where
 import           Common.Route
 import           Control.Monad               ((>=>))
 import           Control.Monad.IO.Class      (liftIO)
+import Data.Aeson (ToJSON)
 import           Data.Map.Strict             (singleton, (!))
 import           Data.Maybe                  (listToMaybe)
 import           Data.Text                   (Text, isInfixOf, splitOn, strip,
                                               stripPrefix)
 import           Data.Time.Clock             (getCurrentTime)
 import           Language.Javascript.JSaddle (JSM, eval, liftJSM, strToText,
-                                              valToStr)
+                                              valToStr, MonadJSM)
 import           Obelisk.Frontend
 import           Obelisk.Route
 import           Reflex.Dom.Core
@@ -84,3 +85,12 @@ buildAppState = do
     , loginEvent
     ]
   pure $ AppState loginStateDyn triggerLogin
+
+sendRequest :: ( MonadJSM
+               ( Performable m )
+               , PerformEvent t m
+               , TriggerEvent t m
+               , ToJSON a)
+            => Text -> Event t a -> m (Event t XhrResponse)
+sendRequest path event = performRequestAsync $ fmap (postJson ("http://localhost:8000/" <> path)) event
+

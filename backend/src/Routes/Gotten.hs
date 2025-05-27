@@ -18,4 +18,4 @@ gotten = do
                   { responseMsg = (\t -> (tweetsUser_name t, tweetsContent t)) <$> tweets
                   }
   modifyResponse $ setHeader "Content-Type" "application/json"
-  writeLBS (A.encode response)  -- Send JSON response to frontend
+  writeLBS (A.encode response)

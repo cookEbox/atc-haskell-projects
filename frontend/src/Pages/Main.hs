@@ -27,7 +27,8 @@ selectCookies click = do
     pure (parseCookie cookieText)
   pure authEvent
 
-mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m => AppState t -> RoutedT t () m ()
+mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m 
+         => AppState t -> RoutedT t () m ()
 mainPage appState = mdo
   logoutButton InAndOut appState
   el "h1" $ text "Twitter App"
@@ -47,11 +48,11 @@ mainPage appState = mdo
                       nameAuthEv
 
         postbuild <- getPostBuild
-        initEv <- performRequestAsync $ fmap (postJson ("http://localhost:8000/" <> get)) postbuild
+        initEv <- sendRequest get postbuild
         let initText = fmap (fromMaybe "" . _xhrResponse_responseText) initEv
-        postEv <- performRequestAsync $ fmap (postJson ("http://localhost:8000/" <> post)) reqEv
+        postEv <- sendRequest post reqEv 
         let triggerGet = void postEv
-        getEv <- performRequestAsync $ fmap (postJson ("http://localhost:8000/" <> get)) triggerGet
+        getEv <- sendRequest get triggerGet
         let getText = fmap (fromMaybe "" . _xhrResponse_responseText) getEv
         pure $ leftmost [initText, getText]
 
@@ -64,16 +65,14 @@ mainPage appState = mdo
       inputEl <- el "div" $ do
         let loggedInDyn = isJust <$> appLoggedIn appState
             attrs = ffor loggedInDyn $ \loggedIn ->
-                      if loggedIn 
+                      if loggedIn
                       then "disabled" =: Nothing
                       else "disabled" =: Just (pack "true")
-        ie <- inputElement $ def 
-                           & inputElementConfig_setValue .~ clearEv
-                           & inputElementConfig_elementConfig . elementConfig_modifyAttributes .~ (updated attrs)
+        ie <- textBox NotPassword clearEv (Just $ updated attrs)
         dyn_ $ ffor loggedInDyn $ \loggedIn ->
-          if loggedIn 
+          if loggedIn
           then void $ button "📨"
-          else blank 
+          else blank
         pure ie
 
       displayDyn <- holdDyn "Loading...." respTextEv

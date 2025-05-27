@@ -15,7 +15,7 @@ signup :: Snap ()
 signup = do
   req <- getRequestBody
   case A.decode req of
-    Just (LoginReq username password) -> do
+    Just (UserDetailsReq username password) -> do
       maybeUser <- liftIO $ runSqlite "Twits.db" $ getBy (UniqueTwit username)
       case maybeUser of
         Just (Entity _ _) -> do
@@ -23,7 +23,7 @@ signup = do
           writeLBS "{\"error\": \"User already exists\"}"
         Nothing -> do
           liftIO $ storeUser username password
-          writeLBS (A.encode $ LoginResp "Success")
+          writeLBS (A.encode $ UserDetailsResp "Success")
     Nothing -> do
       modifyResponse $ setResponseStatus 400 "Bad Request"
       writeLBS "{\"error\": \"Invalid JSON\"}"

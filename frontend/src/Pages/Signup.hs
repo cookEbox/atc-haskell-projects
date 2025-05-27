@@ -28,20 +28,15 @@ signupPage appState = mdo
     rec
       usernameEl <- el "div" $ do
         el "label" $ text "Username: "
-        inputElement $ def
-                     & inputElementConfig_setValue .~ clearEv
+        textBox NotPassword clearEv Nothing
 
       passwordEl <- el "div" $ do
         el "label" $ text "Password: "
-        inputElement $ def
-                     & inputElementConfig_elementConfig . elementConfig_initialAttributes .~ ("type" =: "password")
-                     & inputElementConfig_setValue .~ clearEv
+        textBox Password clearEv Nothing
 
       sndPasswordEl <- el "div" $ do
         el "label" $ text "Re-Enter Password: "
-        inputElement $ def
-                     & inputElementConfig_elementConfig . elementConfig_initialAttributes .~ ("type" =: "password")
-                     & inputElementConfig_setValue .~ clearEv
+        textBox Password clearEv Nothing
 
       void $ button "Sign Up"
 
@@ -67,13 +62,13 @@ signupPage appState = mdo
           else "❌ Values do not match"
         else ""
 
-      let signupData = tag ( current $ LoginReq
-                                   <$> _inputElement_value usernameEl
-                                   <*> ((decodeUtf8 . hashForSending) <$> _inputElement_value passwordEl)
-                          ) loginEvent
+      let signupData = tag ( current $ UserDetailsReq
+                                    <$> _inputElement_value usernameEl
+                                    <*> ((decodeUtf8 . hashForSending) <$> _inputElement_value passwordEl)
+                           ) loginEvent
 
       void $ prerender (pure ()) $ do
-        resp <- performRequestAsync $ fmap (postJson ("http://localhost:8000/ssignup")) signupData
+        resp <- sendRequest "ssignup" signupData
         let txtEv   = fmap (fromJustDef "" . _xhrResponse_responseText) resp
             success = ffilter ("Success" `T.isInfixOf`) txtEv
             failure = ffilter (not . ("Success" `T.isInfixOf`)) txtEv

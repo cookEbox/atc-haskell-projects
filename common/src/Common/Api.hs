@@ -39,19 +39,20 @@ data AuthToken = AuthToken
 instance ToJSON AuthToken
 instance FromJSON AuthToken
 
-data LoginReq = LoginReq
-  { loginUsername :: Text
-  , loginPassword :: Text
+data UserDetailsReq = UserDetailsReq
+  { _username :: Text
+  , _password :: Text
   } deriving stock (Show, Generic)
-instance FromJSON LoginReq
-instance ToJSON LoginReq
+instance FromJSON UserDetailsReq
+instance ToJSON UserDetailsReq
 
-data LoginResp = LoginResp
-  { loginMessage :: Text
+data UserDetailsResp = UserDetailsResp
+  { userDetailsMsg :: Text
   } deriving stock (Show, Generic)
-instance FromJSON LoginResp
-instance ToJSON LoginResp
+instance FromJSON UserDetailsResp
+instance ToJSON UserDetailsResp
 
+-- I need to add a Maybe Reply where you get either Nothing or Just UUID
 data MessageReq = MessageReq
   { reqUserName :: Text
   , userInput   :: Text
@@ -63,6 +64,8 @@ instance FromJSON MessageReq
 type UserName = Text
 type Msg = Text
 
+-- I need to add another element to the tuple a List of messages or a list of message uuids i.e the replies 
+-- I need to add the message uuid so that the message can be replied to
 data MessageResp = MessageResp
   { responseMsg :: [(UserName, Msg)]
   } deriving stock (Show, Eq, Generic)

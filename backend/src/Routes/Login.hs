@@ -42,7 +42,7 @@ login :: Snap ()
 login = do
   req <- getRequestBody
   case A.decode req of
-    Just (LoginReq username password) -> do
+    Just (UserDetailsReq username password) -> do
       maybeUser <- liftIO $ runSqlite "Twits.db" $ getBy (UniqueTwit username)
       case maybeUser of
         Just (Entity _ twit) ->
@@ -56,7 +56,7 @@ login = do
               setCookie' $ encodeUtf8 <$> ("auth", signed)
               setCookie' $ encodeUtf8 <$> ("user", username)
               setCookie' $ encodeUtf8 <$> ("status", "loggedIn")
-              writeLBS (A.encode $ LoginResp "Success")
+              writeLBS (A.encode $ UserDetailsResp "Success")
             else do
               modifyResponse $ setResponseStatus 401 "Unauthorized"
               writeLBS "{\"error\": \"Invalid credentials\"}"

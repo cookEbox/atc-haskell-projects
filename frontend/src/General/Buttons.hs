@@ -6,13 +6,16 @@
 
 module General.Buttons ( logoutButton
                        , LogInAndOut (JustOut, InAndOut)
+                       , Password (Password, NotPassword)
+                       , textBox
                        ) where
 
 import           Common.Route
 import           Control.Monad.IO.Class      (liftIO)
 import           Data.Aeson                  (ToJSON)
+import           Data.Map.Strict             (Map)
 import           Data.Maybe                  (isJust, fromMaybe)
-import           Data.Text                   (isInfixOf)
+import           Data.Text                   (isInfixOf, Text)
 import           General.Functions
 import           Language.Javascript.JSaddle (MonadJSM, liftJSM)
 import           Obelisk.Frontend
@@ -60,4 +63,16 @@ loginPageButton = do
   loginPageClick <- button "Login"
   setRoute $ (FrontendRoute_Login :/ ()) <$ loginPageClick
 
+data Password = Password | NotPassword deriving stock Eq
+
+textBox :: DomBuilder t m => Password -> Event t Text -> Maybe (Event t (Map AttributeName (Maybe Text))) -> m (InputElement EventResult (DomBuilderSpace m) t)
+textBox NotPassword event Nothing = inputElement $ def & inputElementConfig_setValue .~ event 
+textBox NotPassword event (Just event2) = 
+  inputElement $ def 
+               & inputElementConfig_setValue .~ event 
+               & inputElementConfig_elementConfig . elementConfig_modifyAttributes .~ event2
+textBox Password event _ = 
+  inputElement $ def
+               & inputElementConfig_elementConfig . elementConfig_initialAttributes .~ ("type" =: "password")
+               & inputElementConfig_setValue .~ event
 
