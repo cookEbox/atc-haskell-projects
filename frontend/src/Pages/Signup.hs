@@ -62,14 +62,6 @@ signUp signupDataEv = do
     holdDyn "" failure
   pure $ flattenDyn nestedDyn
   
-tagger :: Reflex t 
-       => Dynamic t Text 
-       -> Dynamic t Text 
-       -> Event t a 
-       -> Event t UserDetailsReq
-tagger usernameDyn hashedPasswordDyn loginEv = 
-  tag (current $ UserDetailsReq <$> usernameDyn <*> hashedPasswordDyn) loginEv
-
 signupPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m
            => AppState t -> RoutedT t () m ()
 signupPage appState = mdo
@@ -96,11 +88,11 @@ signupPage appState = mdo
           passwordDyn    = _inputElement_value passwordEl
           sndPasswordDyn = _inputElement_value sndPasswordEl
 
-      loginEv <- inputValidator submitEv usernameDyn passwordDyn sndPasswordDyn
+      signupEv <- inputValidator submitEv usernameDyn passwordDyn sndPasswordDyn
 
-      let clearEv           = "" <$ loginEv
+      let clearEv           = "" <$ signupEv
           hashedPasswordDyn = decodeUtf8 . hashForSending <$> passwordDyn
-          signupDataEv      = tagger usernameDyn hashedPasswordDyn loginEv
+          signupDataEv      = tagger usernameDyn hashedPasswordDyn signupEv
 
       failureDyn <- signUp signupDataEv
       el "div" $ dynText failureDyn

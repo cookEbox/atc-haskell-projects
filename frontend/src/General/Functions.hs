@@ -8,16 +8,17 @@
 module General.Functions where
 
 import           Common.Route
+import           Common.Api
 import           Control.Monad               ((>=>))
 import           Control.Monad.IO.Class      (liftIO)
-import Data.Aeson (ToJSON)
+import           Data.Aeson                  (ToJSON)
 import           Data.Map.Strict             (singleton, (!))
 import           Data.Maybe                  (listToMaybe)
 import           Data.Text                   (Text, isInfixOf, splitOn, strip,
                                               stripPrefix)
 import           Data.Time.Clock             (getCurrentTime)
-import           Language.Javascript.JSaddle (JSM, eval, liftJSM, strToText,
-                                              valToStr, MonadJSM)
+import           Language.Javascript.JSaddle (JSM, MonadJSM, eval, liftJSM,
+                                              strToText, valToStr)
 import           Obelisk.Frontend
 import           Obelisk.Route
 import           Reflex.Dom.Core
@@ -92,4 +93,12 @@ sendRequest :: ( MonadJSM
                , ToJSON a)
             => Text -> Event t a -> m (Event t XhrResponse)
 sendRequest path event = performRequestAsync $ fmap (postJson ("http://localhost:8000/" <> path)) event
+
+tagger :: Reflex t
+       => Dynamic t Text
+       -> Dynamic t Text
+       -> Event t a
+       -> Event t UserDetailsReq
+tagger usernameDyn hashedPasswordDyn loginEv =
+  tag (current $ UserDetailsReq <$> usernameDyn <*> hashedPasswordDyn) loginEv
 
