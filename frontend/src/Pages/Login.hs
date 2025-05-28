@@ -11,8 +11,8 @@ import           Common.Api
 import           Common.Route
 import           Control.Monad               (void)
 import           Control.Monad.IO.Class      (liftIO)
-import Data.Aeson (ToJSON)
-import           Data.Text                   as T (isInfixOf, null, Text)
+import           Data.Aeson                  (ToJSON)
+import           Data.Text                   as T (Text, isInfixOf, null)
 import           Data.Text.Encoding          (decodeUtf8)
 import           General.Buttons
 import           General.Functions
@@ -27,7 +27,7 @@ logIn :: ( ToJSON a, SetRoute t (R FrontendRoute) (Client m)
           , Monad m
           , Prerender t m
           ) => Event t a -> AppState t -> m (Dynamic t Text)
-logIn loginDataEv appState = do 
+logIn loginDataEv appState = do
   nestedDyn <- prerender (pure $ constDyn "") $ do
     resp <- sendRequest "slogin" loginDataEv
     let txtEv   = fmap (fromJustDef "" . _xhrResponse_responseText) resp

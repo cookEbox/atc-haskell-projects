@@ -34,7 +34,7 @@ cookieGetter = do
 
 cookieWatcher :: (MonadWidget t m) => m (Dynamic t Text)
 cookieWatcher = do
-  tick <- tickLossy 1 =<< liftIO getCurrentTime
+  tick <- tickLossy 0.1 =<< liftIO getCurrentTime
   cookieEvent <- performEvent (liftJSM getCookies <$ tick)
   holdDyn "" cookieEvent
 

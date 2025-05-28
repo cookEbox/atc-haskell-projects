@@ -27,6 +27,48 @@ selectCookies click = do
     pure (parseCookie cookieText)
   pure authEvent
 
+input :: (DomBuilder t m, PostBuild t m) 
+      => AppState t
+      -> Event t Text
+      -> m (InputElement EventResult (DomBuilderSpace m) t)
+input appState clearEv = do
+  let loggedInDyn = isJust <$> appLoggedIn appState
+      attrs = ffor loggedInDyn $ \loggedIn ->
+                if loggedIn
+                then "disabled" =: Nothing
+                else "disabled" =: Just (pack "true")
+  ie <- textBox NotPassword clearEv (Hideable $ updated attrs)
+  dyn_ $ ffor loggedInDyn $ \loggedIn ->
+    if loggedIn
+    then void $ button "📨"
+    else blank
+  pure ie
+
+postAndGetMsgs :: (Applicative m, Prerender t m) 
+            => InputElement er d t 
+            -> Event t () 
+            -> m (Dynamic t (Event t Text))
+postAndGetMsgs inputEl loginEv =
+  prerender (pure never) $ mdo
+    rec 
+      let nameAuthEv = fromMaybe ("", "") <$> nameAuthEvMaybe
+          msgEv = tagPromptlyDyn (_inputElement_value inputEl) loginEv
+          reqEv = attachPromptlyDynWith
+                    (\msg (auth, user) -> MessageReq user msg auth)
+                    msgDyn
+                    nameAuthEv
+          initText = fmap (fromMaybe "" . _xhrResponse_responseText) initEv
+          triggerGet = void postEv
+          getText = fmap (fromMaybe "" . _xhrResponse_responseText) getEv
+
+      nameAuthEvMaybe <- selectCookies loginEv
+      msgDyn <- holdDyn "" msgEv
+      postbuild <- getPostBuild
+      initEv <- sendRequest get postbuild
+      postEv <- sendRequest post reqEv 
+      getEv <- sendRequest get triggerGet
+    pure $ leftmost [initText, getText]
+
 mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m 
          => AppState t -> RoutedT t () m ()
 mainPage appState = mdo
@@ -36,45 +78,14 @@ mainPage appState = mdo
 
   (formEl, _) <- elAttr' "form" ("onsubmit" =: "return false;") $ el "div" $ do
     rec
-      respTextDyn <- prerender (pure never) $ do
-        nameAuthEvMaybe <- selectCookies loginEv
-        let nameAuthEv = fromMaybe ("", "") <$> nameAuthEvMaybe
-
-        let msgEv = tagPromptlyDyn (_inputElement_value inputEl) loginEv
-        msgDyn <- holdDyn "" msgEv
-        let reqEv = attachPromptlyDynWith
-                      (\msg (auth, user) -> MessageReq user msg auth)
-                      msgDyn
-                      nameAuthEv
-
-        postbuild <- getPostBuild
-        initEv <- sendRequest get postbuild
-        let initText = fmap (fromMaybe "" . _xhrResponse_responseText) initEv
-        postEv <- sendRequest post reqEv 
-        let triggerGet = void postEv
-        getEv <- sendRequest get triggerGet
-        let getText = fmap (fromMaybe "" . _xhrResponse_responseText) getEv
-        pure $ leftmost [initText, getText]
-
       let respTextEv = switchDyn respTextDyn
           enterEv = domEvent Submit formEl
           nonEmpty = not . T.null <$> _inputElement_value inputEl
           loginEv = gate (current nonEmpty) enterEv
           clearEv = "" <$ loginEv
 
-      inputEl <- el "div" $ do
-        let loggedInDyn = isJust <$> appLoggedIn appState
-            attrs = ffor loggedInDyn $ \loggedIn ->
-                      if loggedIn
-                      then "disabled" =: Nothing
-                      else "disabled" =: Just (pack "true")
-        ie <- textBox NotPassword clearEv (Hideable $ updated attrs)
-        dyn_ $ ffor loggedInDyn $ \loggedIn ->
-          if loggedIn
-          then void $ button "📨"
-          else blank
-        pure ie
-
+      inputEl <- el "div" $ input appState clearEv
+      respTextDyn <- postAndGetMsgs inputEl loginEv 
       displayDyn <- holdDyn "Loading...." respTextEv
       el "div" $ dynText displayDyn
     pure ()
