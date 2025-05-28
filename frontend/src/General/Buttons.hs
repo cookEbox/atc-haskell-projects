@@ -7,6 +7,7 @@
 module General.Buttons ( logoutButton
                        , LogInAndOut (JustOut, InAndOut)
                        , Password (Password, NotPassword)
+                       , Hideable (Hideable, Persistent)
                        , textBox
                        ) where
 
@@ -65,9 +66,11 @@ loginPageButton = do
 
 data Password = Password | NotPassword deriving stock Eq
 
-textBox :: DomBuilder t m => Password -> Event t Text -> Maybe (Event t (Map AttributeName (Maybe Text))) -> m (InputElement EventResult (DomBuilderSpace m) t)
-textBox NotPassword event Nothing = inputElement $ def & inputElementConfig_setValue .~ event 
-textBox NotPassword event (Just event2) = 
+data Hideable t = Hideable (Event t (Map AttributeName (Maybe Text))) | Persistent
+
+textBox :: DomBuilder t m => Password -> Event t Text -> Hideable t -> m (InputElement EventResult (DomBuilderSpace m) t)
+textBox NotPassword event Persistent = inputElement $ def & inputElementConfig_setValue .~ event 
+textBox NotPassword event (Hideable event2) = 
   inputElement $ def 
                & inputElementConfig_setValue .~ event 
                & inputElementConfig_elementConfig . elementConfig_modifyAttributes .~ event2

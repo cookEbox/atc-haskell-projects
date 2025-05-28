@@ -68,7 +68,7 @@ mainPage appState = mdo
                       if loggedIn
                       then "disabled" =: Nothing
                       else "disabled" =: Just (pack "true")
-        ie <- textBox NotPassword clearEv (Just $ updated attrs)
+        ie <- textBox NotPassword clearEv (Hideable $ updated attrs)
         dyn_ $ ffor loggedInDyn $ \loggedIn ->
           if loggedIn
           then void $ button "📨"

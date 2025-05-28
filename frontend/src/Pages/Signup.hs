@@ -1,26 +1,77 @@
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE GADTs                 #-}
-{-# LANGUAGE KindSignatures        #-}
-{-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE RecursiveDo           #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE KindSignatures      #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RecursiveDo         #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Pages.Signup where
 
 import           Common.Api
 import           Common.Route
-import           Control.Monad               (void)
-import           Data.Text                   as T
-import           Data.Text.Encoding          (decodeUtf8)
+import           Control.Monad          (void)
+import           Data.Aeson             (ToJSON)
+import           Data.Text              as T
+import           Data.Text.Encoding     (decodeUtf8)
 import           General.Buttons
 import           General.Functions
 import           Obelisk.Frontend
 import           Obelisk.Route
 import           Obelisk.Route.Frontend
 import           Reflex.Dom.Core
-import           Safe                        (fromJustDef)
+import           Safe                   (fromJustDef)
 
-signupPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m => AppState t -> RoutedT t () m ()
+inputValidator :: (PostBuild t m, DomBuilder t m)
+               => Event t a
+               -> Dynamic t Text
+               -> Dynamic t Text
+               -> Dynamic t Text
+               -> m (Event t a)
+inputValidator submitEv usernameDyn passwordDyn sndPasswordDyn = do
+  let sameValueDyn = (==) <$> passwordDyn <*> sndPasswordDyn
+      bothFilledDyn =
+        (&&) <$> (
+          (&&) <$> fmap (not . T.null) usernameDyn
+               <*> fmap (not . T.null) passwordDyn
+                 )
+             <*> fmap (not . T.null) sndPasswordDyn
+      nonEmptyAndSameValueDyn = (&&) <$> sameValueDyn <*> bothFilledDyn
+      loginEv = gate (current nonEmptyAndSameValueDyn) submitEv
+
+  dynText $ ffor (zipDyn sameValueDyn bothFilledDyn)
+          $ \(isSame, isNotEmpty) ->
+              if isNotEmpty
+              then
+                if isSame
+                then "✅ Values match"
+                else "❌ Values do not match"
+              else ""
+  pure loginEv
+
+signUp :: ( ToJSON a, SetRoute t (R FrontendRoute) (Client m)
+          , Monad m
+          , Prerender t m
+          ) => Event t a -> m (Dynamic t Text)
+signUp signupDataEv = do 
+  nestedDyn <- prerender (pure $ constDyn "") $ do
+    resp <- sendRequest "ssignup" signupDataEv
+    let txtEv   = fmap (fromJustDef "" . _xhrResponse_responseText) resp
+        success = ffilter ("Success" `T.isInfixOf`) txtEv
+        failure = ffilter (not . ("Success" `T.isInfixOf`)) txtEv
+    setRoute ((FrontendRoute_Login :/ ()) <$ success)
+    holdDyn "" failure
+  pure $ flattenDyn nestedDyn
+  
+tagger :: Reflex t 
+       => Dynamic t Text 
+       -> Dynamic t Text 
+       -> Event t a 
+       -> Event t UserDetailsReq
+tagger usernameDyn hashedPasswordDyn loginEv = 
+  tag (current $ UserDetailsReq <$> usernameDyn <*> hashedPasswordDyn) loginEv
+
+signupPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m
+           => AppState t -> RoutedT t () m ()
 signupPage appState = mdo
   logoutButton InAndOut appState
   el "hi" $ text "Signup page"
@@ -28,57 +79,31 @@ signupPage appState = mdo
     rec
       usernameEl <- el "div" $ do
         el "label" $ text "Username: "
-        textBox NotPassword clearEv Nothing
+        textBox NotPassword clearEv Persistent
 
       passwordEl <- el "div" $ do
         el "label" $ text "Password: "
-        textBox Password clearEv Nothing
+        textBox Password clearEv Persistent
 
       sndPasswordEl <- el "div" $ do
         el "label" $ text "Re-Enter Password: "
-        textBox Password clearEv Nothing
+        textBox Password clearEv Persistent
 
       void $ button "Sign Up"
 
-      let submitEv = domEvent Submit formEl
-          sameValue = (==) <$> _inputElement_value passwordEl <*> _inputElement_value sndPasswordEl
+      let submitEv       = domEvent Submit formEl
+          usernameDyn    = _inputElement_value usernameEl
+          passwordDyn    = _inputElement_value passwordEl
+          sndPasswordDyn = _inputElement_value sndPasswordEl
 
-          bothFilledDyn = (&&) <$> ((&&)
-            <$> fmap (not . T.null) (_inputElement_value usernameEl)
-            <*> fmap (not . T.null) (_inputElement_value passwordEl))
-            <*> fmap (not . T.null) (_inputElement_value sndPasswordEl)
+      loginEv <- inputValidator submitEv usernameDyn passwordDyn sndPasswordDyn
 
-          nonEmptyAndSameValue = (&&) <$> sameValue <*> bothFilledDyn
+      let clearEv           = "" <$ loginEv
+          hashedPasswordDyn = decodeUtf8 . hashForSending <$> passwordDyn
+          signupDataEv      = tagger usernameDyn hashedPasswordDyn loginEv
 
-          loginEvent = gate (current nonEmptyAndSameValue) submitEv
-
-          clearEv = "" <$ loginEvent
-
-      dynText $ ffor (zipDyn sameValue bothFilledDyn) $ \(isSame, isNotEmpty) ->
-        if isNotEmpty
-        then
-          if isSame
-          then "✅ Values match"
-          else "❌ Values do not match"
-        else ""
-
-      let signupData = tag ( current $ UserDetailsReq
-                                    <$> _inputElement_value usernameEl
-                                    <*> ((decodeUtf8 . hashForSending) <$> _inputElement_value passwordEl)
-                           ) loginEvent
-
-      void $ prerender (pure ()) $ do
-        resp <- sendRequest "ssignup" signupData
-        let txtEv   = fmap (fromJustDef "" . _xhrResponse_responseText) resp
-            success = ffilter ("Success" `T.isInfixOf`) txtEv
-            failure = ffilter (not . ("Success" `T.isInfixOf`)) txtEv
-
-        setRoute ((FrontendRoute_Login :/ ()) <$ success)
-
-        failureDyn <- holdDyn "" failure
-        el "div" $ dynText failureDyn
-        pure ()
-      pure ()
+      failureDyn <- signUp signupDataEv
+      el "div" $ dynText failureDyn
     pure ()
   pure ()
 

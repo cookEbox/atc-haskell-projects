@@ -78,7 +78,6 @@ initial = do
 buildAppState :: forall t m. ObeliskWidget t (R FrontendRoute) m => m (AppState t)
 buildAppState = do
   initialLoggedIn <- initial
-
   (loginEvent, triggerLogin) <- newTriggerEvent
   loginStateDyn <- holdDyn Nothing $ leftmost
     [ updated initialLoggedIn

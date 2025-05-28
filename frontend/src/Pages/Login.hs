@@ -31,11 +31,11 @@ loginPage appState = mdo
     rec
       usernameEl <- el "div" $ do
         el "label" $ text "Username: "
-        textBox NotPassword clearEv Nothing
+        textBox NotPassword clearEv Persistent
 
       passwordEl <- el "div" $ do
         el "label" $ text "Password: "
-        textBox Password clearEv Nothing
+        textBox Password clearEv Persistent
 
       void $ button "Login"
 
