@@ -12,6 +12,8 @@
 module Frontend where
 
 import           Common.Route
+import           Control.Monad               ((>=>))
+import Data.Text (Text)
 import           General.Functions
 import           Obelisk.Frontend
 import           Obelisk.Generated.Static
@@ -21,6 +23,29 @@ import           Pages.Login
 import           Pages.Main
 import           Pages.Signup
 import           Reflex.Dom.Core
+
+initial :: ObeliskWidget t (R FrontendRoute) m => m (Dynamic t (Maybe (Text, Text)))
+initial = do
+  nestedDyn <- prerender
+    (pure $ constDyn Nothing)
+    (do
+      cookieDyn       <- cookieWatcher
+      let parsedDyn    = fmap (statusCookieMaybe >=> parseCookie) cookieDyn
+      firstParsedE    <- headE $ fmapMaybe id (updated parsedDyn)
+      oneAndDoneDyn   <- holdDyn Nothing (Just <$> firstParsedE)
+      pure oneAndDoneDyn
+    )
+  pure $ flattenDyn nestedDyn
+
+buildAppState :: forall t m. ObeliskWidget t (R FrontendRoute) m => m (AppState t)
+buildAppState = do
+  initialLoggedIn <- initial
+  (loginEvent, triggerLogin) <- newTriggerEvent
+  loginStateDyn <- holdDyn Nothing $ leftmost
+    [ updated initialLoggedIn
+    , loginEvent
+    ]
+  pure $ AppState loginStateDyn triggerLogin
 
 frontend :: Frontend (R FrontendRoute)
 frontend = Frontend

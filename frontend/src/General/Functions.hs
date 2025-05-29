@@ -7,9 +7,7 @@
 
 module General.Functions where
 
-import           Common.Route
 import           Common.Api
-import           Control.Monad               ((>=>))
 import           Control.Monad.IO.Class      (liftIO)
 import           Data.Aeson                  (ToJSON)
 import           Data.Map.Strict             (singleton, (!))
@@ -19,8 +17,6 @@ import           Data.Text                   (Text, isInfixOf, splitOn, strip,
 import           Data.Time.Clock             (getCurrentTime)
 import           Language.Javascript.JSaddle (JSM, MonadJSM, eval, liftJSM,
                                               strToText, valToStr)
-import           Obelisk.Frontend
-import           Obelisk.Route
 import           Reflex.Dom.Core
 
 getCookies :: JSM Text
@@ -62,29 +58,6 @@ data AppState t = AppState
 flattenDyn :: Reflex t => Dynamic t (Dynamic t a) -> Dynamic t a
 flattenDyn dd =
   (\mp -> mp ! ()) <$> joinDynThroughMap (singleton () <$> dd)
-
-initial :: ObeliskWidget t (R FrontendRoute) m => m (Dynamic t (Maybe (Text, Text)))
-initial = do
-  nestedDyn <- prerender
-    (pure $ constDyn Nothing)
-    (do
-      cookieDyn       <- cookieWatcher
-      let parsedDyn    = fmap (statusCookieMaybe >=> parseCookie) cookieDyn
-      firstParsedE    <- headE $ fmapMaybe id (updated parsedDyn)
-      oneAndDoneDyn   <- holdDyn Nothing (Just <$> firstParsedE)
-      pure oneAndDoneDyn
-    )
-  pure $ flattenDyn nestedDyn
-
-buildAppState :: forall t m. ObeliskWidget t (R FrontendRoute) m => m (AppState t)
-buildAppState = do
-  initialLoggedIn <- initial
-  (loginEvent, triggerLogin) <- newTriggerEvent
-  loginStateDyn <- holdDyn Nothing $ leftmost
-    [ updated initialLoggedIn
-    , loginEvent
-    ]
-  pure $ AppState loginStateDyn triggerLogin
 
 sendRequest :: ( MonadJSM
                ( Performable m )
