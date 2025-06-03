@@ -4,7 +4,7 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module General.Buttons ( logoutButton
+module General.Buttons ( loginControlButton
                        , LogInAndOut (JustOut, InAndOut)
                        , Password (Password, NotPassword)
                        , Hideable (Hideable, Persistent)
@@ -24,17 +24,22 @@ import           Obelisk.Route
 import           Obelisk.Route.Frontend
 import           Reflex.Dom.Core
 
-logoutEvent :: ( MonadJSM (Performable m)
-          , PerformEvent t m, TriggerEvent t m
-          , ToJSON a
-          ) => Event t a -> m (Event t XhrResponse)
-logoutEvent logoutClick = do
-    performRequestAsync $ fmap (postJson $ "http://localhost:8000/" <> "slogout") logoutClick
+data LogInAndOut 
+  = JustOut 
+  | InAndOut 
+  deriving stock Eq
 
-data LogInAndOut = JustOut | InAndOut deriving stock Eq
+logoutEv :: ( MonadJSM (Performable m)
+            , PerformEvent t m, TriggerEvent t m
+            , ToJSON a
+            ) => Event t a -> m (Event t XhrResponse)
+logoutEv logoutClickEv = sendRequest "slogout" logoutClickEv
 
-logoutButton :: ObeliskWidget t (R FrontendRoute) m  => LogInAndOut -> AppState t -> RoutedT t () m ()
-logoutButton logInAndOut appState = el "div" $ do
+loginControlButton :: ObeliskWidget t (R FrontendRoute) m  
+                   => LogInAndOut 
+                   -> AppState t 
+                   -> RoutedT t () m ()
+loginControlButton logInAndOut appState = el "div" $ do
   _ <- prerender (pure ()) $ do
     let showButton = isJust <$> appLoggedIn appState
 
@@ -42,13 +47,14 @@ logoutButton logInAndOut appState = el "div" $ do
       if showBtn
       then do
         _ <- prerender (pure ()) $ do
-          logoutClick <- button "Logout"
-          logoutResponseEvent <- logoutEvent logoutClick
-          let getResponse = fmap (fromMaybe "" . _xhrResponse_responseText) logoutResponseEvent
-              isSuccess   = isInfixOf "Success"
-              failureResp = ffilter (not . isSuccess) getResponse
+          logoutClickEv <- button "Logout"
+          logoutResponseEv <- logoutEv logoutClickEv
+          let responseTxt   = fromMaybe "" . _xhrResponse_responseText
+              getResponseEv = fmap responseTxt logoutResponseEv
+              isSuccess     = isInfixOf "Success"
+              failureRespEv = ffilter (not . isSuccess) getResponseEv
 
-          performEvent_ $ ffor failureResp $ \_ -> liftJSM $ do
+          performEvent_ $ ffor failureRespEv $ \_ -> liftJSM $ do
             cookieText <- getCookies
             let parsed = statusCookieMaybe cookieText >>= parseCookie
             liftIO $ triggerLoggedIn appState parsed
@@ -56,26 +62,43 @@ logoutButton logInAndOut appState = el "div" $ do
         pure ()
       else if logInAndOut == InAndOut
            then loginPageButton
-           else blank
+           else signUpPageButton
   pure ()
+
+signUpPageButton :: ( DomBuilder t m , SetRoute t (R FrontendRoute) m) => m () 
+signUpPageButton = do 
+  signupClickEv <- button "Sign Up"
+  setRoute $ (FrontendRoute_Signup :/ ()) <$ signupClickEv
 
 loginPageButton :: ( DomBuilder t m , SetRoute t (R FrontendRoute) m) => m ()
 loginPageButton = do
-  loginPageClick <- button "Login"
-  setRoute $ (FrontendRoute_Login :/ ()) <$ loginPageClick
+  loginClickEv <- button "Login"
+  setRoute $ (FrontendRoute_Login :/ ()) <$ loginClickEv
 
-data Password = Password | NotPassword deriving stock Eq
+data Password 
+  = Password 
+  | NotPassword 
+  deriving stock Eq
 
-data Hideable t = Hideable (Event t (Map AttributeName (Maybe Text))) | Persistent
+data Hideable t 
+  = Hideable (Event t (Map AttributeName (Maybe Text))) 
+  | Persistent
 
-textBox :: DomBuilder t m => Password -> Event t Text -> Hideable t -> m (InputElement EventResult (DomBuilderSpace m) t)
-textBox NotPassword event Persistent = inputElement $ def & inputElementConfig_setValue .~ event 
-textBox NotPassword event (Hideable event2) = 
-  inputElement $ def 
-               & inputElementConfig_setValue .~ event 
-               & inputElementConfig_elementConfig . elementConfig_modifyAttributes .~ event2
-textBox Password event _ = 
-  inputElement $ def
-               & inputElementConfig_elementConfig . elementConfig_initialAttributes .~ ("type" =: "password")
-               & inputElementConfig_setValue .~ event
+textBox :: DomBuilder t m 
+        => Password 
+        -> Event t Text 
+        -> Hideable t 
+        -> m (InputElement EventResult (DomBuilderSpace m) t)
+textBox NotPassword event Persistent 
+  = inputElement $ def & inputElementConfig_setValue .~ event 
+textBox NotPassword event (Hideable event2) 
+  = inputElement $ def 
+                 & inputElementConfig_setValue .~ event 
+                 & inputElementConfig_elementConfig 
+                 . elementConfig_modifyAttributes .~ event2
+textBox Password event _ 
+  = inputElement $ def
+                 & inputElementConfig_elementConfig 
+                 . elementConfig_initialAttributes .~ ("type" =: "password")
+                 & inputElementConfig_setValue .~ event
 
