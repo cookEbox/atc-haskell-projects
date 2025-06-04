@@ -5,7 +5,11 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module General.Buttons ( loginControlButton
-                       , LoggedOutControlButtons (Login, LoginAndSignup, Signup)
+                       , LoggedOutControlButtons 
+                          ( LoginAndMain
+                          , LoginAndSignup
+                          , SignupAndMain 
+                          )
                        , Password (Password, NotPassword)
                        , Hideable (Hideable, Persistent)
                        , textBox
@@ -13,28 +17,21 @@ module General.Buttons ( loginControlButton
 
 import           Common.Route
 import           Control.Monad.IO.Class      (liftIO)
-import           Data.Aeson                  (ToJSON)
 import           Data.Map.Strict             (Map)
 import           Data.Maybe                  (isJust, fromMaybe)
 import           Data.Text                   (isInfixOf, Text)
 import           General.Functions
-import           Language.Javascript.JSaddle (MonadJSM, liftJSM)
+import           Language.Javascript.JSaddle (liftJSM)
 import           Obelisk.Frontend
 import           Obelisk.Route
 import           Obelisk.Route.Frontend
 import           Reflex.Dom.Core
 
 data LoggedOutControlButtons 
-  = Login 
+  = LoginAndMain 
   | LoginAndSignup 
-  | Signup
+  | SignupAndMain
   deriving stock Eq
-
-logoutEv :: ( MonadJSM (Performable m)
-            , PerformEvent t m, TriggerEvent t m
-            , ToJSON a
-            ) => Event t a -> m (Event t XhrResponse)
-logoutEv logoutClickEv = sendRequest "slogout" logoutClickEv
 
 loginControlButton :: ObeliskWidget t (R FrontendRoute) m  
                    => LoggedOutControlButtons 
@@ -49,7 +46,7 @@ loginControlButton logInAndOut appState = el "div" $ do
       then do
         _ <- prerender (pure ()) $ do
           logoutClickEv <- button "Logout"
-          logoutResponseEv <- logoutEv logoutClickEv
+          logoutResponseEv <- sendRequest "slogout" logoutClickEv
           let responseTxt   = fromMaybe "" . _xhrResponse_responseText
               getResponseEv = fmap responseTxt logoutResponseEv
               isSuccess     = isInfixOf "Success"
@@ -64,9 +61,16 @@ loginControlButton logInAndOut appState = el "div" $ do
       else case logInAndOut of 
         LoginAndSignup -> do loginPageButton
                              signUpPageButton
-        Login          -> loginPageButton 
-        Signup         -> signUpPageButton
+        LoginAndMain   -> do loginPageButton 
+                             mainPageButton
+        SignupAndMain  -> do signUpPageButton
+                             mainPageButton
   pure ()
+
+mainPageButton :: ( DomBuilder t m , SetRoute t (R FrontendRoute) m) => m () 
+mainPageButton = do 
+  homeClickEv <- button "Home"
+  setRoute $ (FrontendRoute_Main :/ ()) <$ homeClickEv
 
 signUpPageButton :: ( DomBuilder t m , SetRoute t (R FrontendRoute) m) => m () 
 signUpPageButton = do 

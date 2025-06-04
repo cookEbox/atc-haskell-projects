@@ -46,7 +46,7 @@ logIn loginDataEv appState = do
 loginPage :: ObeliskWidget t (R FrontendRoute) m
           => AppState t -> RoutedT t () m ()
 loginPage appState = mdo
-  loginControlButton Signup appState
+  loginControlButton SignupAndMain appState
   el "h1" $ text "LOGIN PAGE"
   (formEl, _) <- elAttr' "form" ("onsubmit" =: "return false;") $ do
     rec
