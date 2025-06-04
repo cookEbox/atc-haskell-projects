@@ -72,7 +72,7 @@ postAndGetMsgs inputEl loginEv =
 mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m 
          => AppState t -> RoutedT t () m ()
 mainPage appState = mdo
-  loginControlButton InAndOut appState
+  loginControlButton LoginAndSignup appState
   el "h1" $ text "Twitter App"
   el "p" $ text "Enter text and press submit:"
 

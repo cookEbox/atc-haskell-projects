@@ -65,7 +65,7 @@ signUp signupDataEv = do
 signupPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m
            => AppState t -> RoutedT t () m ()
 signupPage appState = mdo
-  loginControlButton InAndOut appState
+  loginControlButton Login appState
   el "hi" $ text "Signup page"
   (formEl, _) <- elAttr' "form" ("onsubmit" =: "return false;") $ do
     rec

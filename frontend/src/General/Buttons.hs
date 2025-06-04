@@ -5,7 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module General.Buttons ( loginControlButton
-                       , LogInAndOut (JustOut, InAndOut)
+                       , LoggedOutControlButtons (Login, LoginAndSignup, Signup)
                        , Password (Password, NotPassword)
                        , Hideable (Hideable, Persistent)
                        , textBox
@@ -24,9 +24,10 @@ import           Obelisk.Route
 import           Obelisk.Route.Frontend
 import           Reflex.Dom.Core
 
-data LogInAndOut 
-  = JustOut 
-  | InAndOut 
+data LoggedOutControlButtons 
+  = Login 
+  | LoginAndSignup 
+  | Signup
   deriving stock Eq
 
 logoutEv :: ( MonadJSM (Performable m)
@@ -36,7 +37,7 @@ logoutEv :: ( MonadJSM (Performable m)
 logoutEv logoutClickEv = sendRequest "slogout" logoutClickEv
 
 loginControlButton :: ObeliskWidget t (R FrontendRoute) m  
-                   => LogInAndOut 
+                   => LoggedOutControlButtons 
                    -> AppState t 
                    -> RoutedT t () m ()
 loginControlButton logInAndOut appState = el "div" $ do
@@ -60,9 +61,11 @@ loginControlButton logInAndOut appState = el "div" $ do
             liftIO $ triggerLoggedIn appState parsed
           pure ()
         pure ()
-      else if logInAndOut == InAndOut
-           then loginPageButton
-           else signUpPageButton
+      else case logInAndOut of 
+        LoginAndSignup -> do loginPageButton
+                             signUpPageButton
+        Login          -> loginPageButton 
+        Signup         -> signUpPageButton
   pure ()
 
 signUpPageButton :: ( DomBuilder t m , SetRoute t (R FrontendRoute) m) => m () 

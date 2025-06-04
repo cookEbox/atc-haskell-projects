@@ -12,6 +12,7 @@ import           Common.Route
 import           Control.Monad               (void)
 import           Control.Monad.IO.Class      (liftIO)
 import           Data.Aeson                  (ToJSON)
+import           Data.Maybe                  (fromMaybe)
 import           Data.Text                   as T (Text, isInfixOf, null)
 import           Data.Text.Encoding          (decodeUtf8)
 import           General.Buttons
@@ -21,7 +22,6 @@ import           Obelisk.Frontend
 import           Obelisk.Route
 import           Obelisk.Route.Frontend
 import           Reflex.Dom.Core
-import           Safe                        (fromJustDef)
 
 logIn :: ( ToJSON a, SetRoute t (R FrontendRoute) (Client m)
           , Monad m
@@ -30,7 +30,7 @@ logIn :: ( ToJSON a, SetRoute t (R FrontendRoute) (Client m)
 logIn loginDataEv appState = do
   nestedDyn <- prerender (pure $ constDyn "") $ do
     resp <- sendRequest "slogin" loginDataEv
-    let txtEv   = fmap (fromJustDef "" . _xhrResponse_responseText) resp
+    let txtEv   = fmap (fromMaybe "" . _xhrResponse_responseText) resp
         success = ffilter ("Success" `T.isInfixOf`) txtEv
         failure = ffilter (not . ("Success" `T.isInfixOf`)) txtEv
 
@@ -43,9 +43,10 @@ logIn loginDataEv appState = do
     holdDyn "" failure
   pure $ flattenDyn nestedDyn
 
-loginPage :: ObeliskWidget t (R FrontendRoute) m  => AppState t -> RoutedT t () m ()
+loginPage :: ObeliskWidget t (R FrontendRoute) m
+          => AppState t -> RoutedT t () m ()
 loginPage appState = mdo
-  loginControlButton JustOut appState
+  loginControlButton Signup appState
   el "h1" $ text "LOGIN PAGE"
   (formEl, _) <- elAttr' "form" ("onsubmit" =: "return false;") $ do
     rec
