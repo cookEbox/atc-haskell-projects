@@ -95,7 +95,6 @@ signupPage appState = mdo
           signupDataEv      = tagger usernameDyn hashedPasswordDyn signupEv
 
       failureDyn <- signUp signupDataEv
-      el "div" $ dynText failureDyn
-    pure ()
+    el "div" $ dynText failureDyn
   pure ()
 

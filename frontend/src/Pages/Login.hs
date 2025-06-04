@@ -72,7 +72,6 @@ loginPage appState = mdo
           loginDataEv       = tagger usernameDyn hashedPasswordDyn loginEv
 
       failureDyn <- logIn loginDataEv appState
-      el "div" $ dynText failureDyn
-    pure ()
+    el "div" $ dynText failureDyn
   pure ()
 

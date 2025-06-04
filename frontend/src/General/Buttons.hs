@@ -5,17 +5,18 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module General.Buttons ( loginControlButton
-                       , LoggedOutControlButtons 
-                          ( LoginAndMain
-                          , LoginAndSignup
-                          , SignupAndMain 
-                          )
+                       , LoggedOutButtons 
+                         ( LoginAndMain
+                         , LoginAndSignup
+                         , SignupAndMain 
+                         )
                        , Password (Password, NotPassword)
                        , Hideable (Hideable, Persistent)
                        , textBox
                        ) where
 
 import           Common.Route
+import           Control.Monad               (void)
 import           Control.Monad.IO.Class      (liftIO)
 import           Data.Map.Strict             (Map)
 import           Data.Maybe                  (isJust, fromMaybe)
@@ -27,45 +28,47 @@ import           Obelisk.Route
 import           Obelisk.Route.Frontend
 import           Reflex.Dom.Core
 
-data LoggedOutControlButtons 
+data LoggedOutButtons 
   = LoginAndMain 
   | LoginAndSignup 
   | SignupAndMain
   deriving stock Eq
 
+logOut :: ( SetRoute t (R FrontendRoute) (Client m)
+          , Monad m
+          , Prerender t m
+          ) => AppState t -> m ()
+logOut appState = do
+  void $ prerender (pure ()) $ do
+    logoutClickEv <- button "Logout"
+    logoutResponseEv <- sendRequest "slogout" logoutClickEv
+    let responseTxt   = fromMaybe "" . _xhrResponse_responseText
+        getResponseEv = fmap responseTxt logoutResponseEv
+        isSuccess     = isInfixOf "Success"
+        failureRespEv = ffilter (not . isSuccess) getResponseEv
+    performEvent_ $ ffor failureRespEv $ \_ -> liftJSM $ do
+      cookieText <- getCookies
+      let parsed = statusCookieMaybe cookieText >>= parseCookie
+      liftIO $ triggerLoggedIn appState parsed
+
 loginControlButton :: ObeliskWidget t (R FrontendRoute) m  
-                   => LoggedOutControlButtons 
+                   => LoggedOutButtons 
                    -> AppState t 
                    -> RoutedT t () m ()
-loginControlButton logInAndOut appState = el "div" $ do
-  _ <- prerender (pure ()) $ do
+loginControlButton loggedOutButtons appState = el "div" $ do
+  void $ prerender (pure ()) $ do
     let showButton = isJust <$> appLoggedIn appState
-
     dyn_ $ ffor showButton $ \showBtn ->
       if showBtn
-      then do
-        _ <- prerender (pure ()) $ do
-          logoutClickEv <- button "Logout"
-          logoutResponseEv <- sendRequest "slogout" logoutClickEv
-          let responseTxt   = fromMaybe "" . _xhrResponse_responseText
-              getResponseEv = fmap responseTxt logoutResponseEv
-              isSuccess     = isInfixOf "Success"
-              failureRespEv = ffilter (not . isSuccess) getResponseEv
-
-          performEvent_ $ ffor failureRespEv $ \_ -> liftJSM $ do
-            cookieText <- getCookies
-            let parsed = statusCookieMaybe cookieText >>= parseCookie
-            liftIO $ triggerLoggedIn appState parsed
-          pure ()
-        pure ()
-      else case logInAndOut of 
+      then logOut appState
+      else 
+        case loggedOutButtons of 
         LoginAndSignup -> do loginPageButton
                              signUpPageButton
         LoginAndMain   -> do loginPageButton 
                              mainPageButton
         SignupAndMain  -> do signUpPageButton
                              mainPageButton
-  pure ()
 
 mainPageButton :: ( DomBuilder t m , SetRoute t (R FrontendRoute) m) => m () 
 mainPageButton = do 

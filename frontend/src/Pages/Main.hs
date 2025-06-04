@@ -87,7 +87,6 @@ mainPage appState = mdo
       inputEl <- el "div" $ input appState clearEv
       respTextDyn <- postAndGetMsgs inputEl loginEv 
       displayDyn <- holdDyn "Loading...." respTextEv
-      el "div" $ dynText displayDyn
-    pure ()
+    el "div" $ dynText displayDyn
   pure ()
 
