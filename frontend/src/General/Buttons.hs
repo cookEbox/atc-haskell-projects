@@ -105,10 +105,12 @@ textBox NotPassword event (Hideable event2)
   = inputElement $ def 
                  & inputElementConfig_setValue .~ event 
                  & inputElementConfig_elementConfig 
-                 . elementConfig_modifyAttributes .~ event2
+                   . elementConfig_initialAttributes .~ ("disabled" =: "true")
+                 & inputElementConfig_elementConfig 
+                   . elementConfig_modifyAttributes .~ event2
 textBox Password event _ 
   = inputElement $ def
                  & inputElementConfig_elementConfig 
-                 . elementConfig_initialAttributes .~ ("type" =: "password")
+                   . elementConfig_initialAttributes .~ ("type" =: "password")
                  & inputElementConfig_setValue .~ event
 
