@@ -19,6 +19,8 @@ library
                , safe
                , time
                , containers
+               , blaze-html
+               , blaze-markup
   exposed-modules:
     Frontend
   other-modules: 
@@ -50,6 +52,8 @@ executable frontend
                , safe
                , time
                , containers
+               , blaze-html
+               , blaze-markup
   ghc-options: -Wall -O -fno-show-valid-hole-fits -threaded
                -- unsafe code
                -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields

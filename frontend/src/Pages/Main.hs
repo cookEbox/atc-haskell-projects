@@ -9,25 +9,34 @@ module Pages.Main where
 
 import           Common.Api
 import           Common.Route
-import           Control.Monad               (void)
-import           Data.Maybe                  (fromMaybe, isJust)
-import           Data.Text                   as T
+import           Control.Monad                 (void)
+import           Data.Aeson                    (eitherDecodeStrict')
+import qualified Data.ByteString.Char8         as B8
+import           Data.Maybe                    (fromMaybe, isJust)
+import           Data.Text                     (Text, null, pack, unpack)
+import           Data.Text.Lazy                (toStrict)
 import           General.Buttons
 import           General.Functions
-import           Language.Javascript.JSaddle (liftJSM)
+import           Language.Javascript.JSaddle   (liftJSM)
 import           Obelisk.Frontend
 import           Obelisk.Route
 import           Obelisk.Route.Frontend
+import           Prelude                       hiding (div, null, span)
 import           Reflex.Dom.Core
+import           Text.Blaze.Html.Renderer.Text (renderHtml)
+import           Text.Blaze.Html5              (Html, div, span, toHtml, (!))
+import           Text.Blaze.Html5.Attributes   (class_)
 
-selectCookies :: MonadWidget t m => Event t () -> m (Event t (Maybe (Text, Text)))
+selectCookies :: MonadWidget t m 
+              => Event t () 
+              -> m (Event t (Maybe (Text, Text)))
 selectCookies click = do
   authEvent <- performEvent $ ffor click $ \_ -> do
     cookieText <- liftJSM getCookies
     pure (parseCookie cookieText)
   pure authEvent
 
-input :: (DomBuilder t m, PostBuild t m) 
+input :: (DomBuilder t m, PostBuild t m)
       => AppState t
       -> Event t Text
       -> m (InputElement EventResult (DomBuilderSpace m) t)
@@ -44,32 +53,54 @@ input appState clearEv = do
     else blank
   pure ie
 
-postAndGetMsgs :: (Applicative m, Prerender t m) 
-            => InputElement er d t 
-            -> Event t () 
+postAndGetMsgs :: (Applicative m, Prerender t m)
+            => InputElement er d t
+            -> Event t ()
             -> m (Dynamic t (Event t Text))
 postAndGetMsgs inputEl loginEv =
   prerender (pure never) $ mdo
-    rec 
+    rec
       let nameAuthEv = fromMaybe ("", "") <$> nameAuthEvMaybe
-          msgEv = tagPromptlyDyn (_inputElement_value inputEl) loginEv
-          reqEv = attachPromptlyDynWith
-                    (\msg (auth, user) -> MessageReq user msg auth)
-                    msgDyn
-                    nameAuthEv
-          initText = fmap (fromMaybe "" . _xhrResponse_responseText) initEv
+          msgEv      = tagPromptlyDyn (_inputElement_value inputEl) loginEv
+          reqEv      = attachPromptlyDynWith
+                        (\msg (auth, user) -> MessageReq user msg auth)
+                        msgDyn
+                        nameAuthEv
+          initText   = fmap (fromMaybe "" . _xhrResponse_responseText) initEv
           triggerGet = void postEv
-          getText = fmap (fromMaybe "" . _xhrResponse_responseText) getEv
+          getText    = fmap (fromMaybe "" . _xhrResponse_responseText) getEv
 
       nameAuthEvMaybe <- selectCookies loginEv
-      msgDyn <- holdDyn "" msgEv
-      postbuild <- getPostBuild
-      initEv <- sendRequest get postbuild
-      postEv <- sendRequest post reqEv 
-      getEv <- sendRequest get triggerGet
+      msgDyn          <- holdDyn "" msgEv
+      postbuild       <- getPostBuild
+      initEv          <- sendRequest get postbuild
+      postEv          <- sendRequest post reqEv
+      getEv           <- sendRequest get triggerGet
     pure $ leftmost [initText, getText]
 
-mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m 
+messageHtml :: (Text, Text) -> Html
+messageHtml (user, body) =
+  div ! class_ "message" $ do
+    span ! class_ "user" $ toHtml user
+    toHtml (": " :: Text)
+    span ! class_ "body" $ toHtml body
+
+textToHtml :: Text -> Html
+textToHtml txt = div ! class_ "myBox" $ toHtml txt
+
+renderBlaze :: (Applicative m, Prerender t m) => Dynamic t Html -> m ()
+renderBlaze htmlDyn =
+  void $ prerender (pure ()) $ do
+    let textDyn = toStrict . renderHtml <$> htmlDyn
+    void $ elDynHtmlAttr' "div" mempty textDyn
+
+decodeJson :: Text -> [(Text,Text)]
+decodeJson t =
+  case eitherDecodeStrict' (B8.pack $ unpack t) of
+    Left  _err             -> []
+    Right (MessageResp xs) -> xs
+
+mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m
          => AppState t -> RoutedT t () m ()
 mainPage appState = mdo
   loginControlButton LoginAndSignup appState
@@ -79,14 +110,19 @@ mainPage appState = mdo
   (formEl, _) <- elAttr' "form" ("onsubmit" =: "return false;") $ el "div" $ do
     rec
       let respTextEv = switchDyn respTextDyn
-          enterEv = domEvent Submit formEl
-          nonEmpty = not . T.null <$> _inputElement_value inputEl
-          loginEv = gate (current nonEmpty) enterEv
-          clearEv = "" <$ loginEv
+          respListEv = fmap decodeJson respTextEv
+          enterEv    = domEvent Submit formEl
+          nonEmpty   = not . null <$> _inputElement_value inputEl
+          loginEv    = gate (current nonEmpty) enterEv
+          clearEv    = "" <$ loginEv
 
-      inputEl <- el "div" $ input appState clearEv
-      respTextDyn <- postAndGetMsgs inputEl loginEv 
-      displayDyn <- holdDyn "Loading...." respTextEv
-    el "div" $ dynText displayDyn
+      inputEl     <- el "div" $ input appState clearEv
+      respTextDyn <- postAndGetMsgs inputEl loginEv
+      respListDyn <- holdDyn [] respListEv
+
+    elAttr "div" ("class" =: "allMessages") $ do
+      void $ simpleList respListDyn $ \pairDyn -> do
+        let msgHtmlDyn = messageHtml <$> pairDyn
+        renderBlaze msgHtmlDyn
   pure ()
 
