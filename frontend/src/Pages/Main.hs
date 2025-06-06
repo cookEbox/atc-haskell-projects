@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE KindSignatures      #-}
+{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE RecursiveDo         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -14,7 +15,6 @@ import           Data.Aeson                    (eitherDecodeStrict')
 import qualified Data.ByteString.Char8         as B8
 import           Data.Maybe                    (fromMaybe, isJust)
 import           Data.Text                     (Text, null, pack, unpack)
-import           Data.Text.Lazy                (toStrict)
 import           General.Buttons
 import           General.Functions
 import           Language.Javascript.JSaddle   (liftJSM)
@@ -23,12 +23,10 @@ import           Obelisk.Route
 import           Obelisk.Route.Frontend
 import           Prelude                       hiding (div, null, span)
 import           Reflex.Dom.Core
-import           Text.Blaze.Html.Renderer.Text (renderHtml)
-import           Text.Blaze.Html5              (Html, div, span, toHtml, (!))
-import           Text.Blaze.Html5.Attributes   (class_)
+import Control.Monad.Fix (MonadFix)
 
-selectCookies :: MonadWidget t m 
-              => Event t () 
+selectCookies :: MonadWidget t m
+              => Event t ()
               -> m (Event t (Maybe (Text, Text)))
 selectCookies click = do
   authEvent <- performEvent $ ffor click $ \_ -> do
@@ -78,27 +76,36 @@ postAndGetMsgs inputEl loginEv =
       getEv           <- sendRequest get triggerGet
     pure $ leftmost [initText, getText]
 
-messageHtml :: (Text, Text) -> Html
-messageHtml (user, body) =
-  div ! class_ "message" $ do
-    span ! class_ "user" $ toHtml user
-    toHtml (": " :: Text)
-    span ! class_ "body" $ toHtml body
-
-textToHtml :: Text -> Html
-textToHtml txt = div ! class_ "myBox" $ toHtml txt
-
-renderBlaze :: (Applicative m, Prerender t m) => Dynamic t Html -> m ()
-renderBlaze htmlDyn =
-  void $ prerender (pure ()) $ do
-    let textDyn = toStrict . renderHtml <$> htmlDyn
-    void $ elDynHtmlAttr' "div" mempty textDyn
-
 decodeJson :: Text -> [(Text,Text)]
 decodeJson t =
   case eitherDecodeStrict' (B8.pack $ unpack t) of
     Left  _err             -> []
     Right (MessageResp xs) -> xs
+
+displayMessages :: ( DomBuilder t m
+                   , PostBuild t m
+                   , MonadHold t m
+                   , MonadFix m 
+                   ) => Dynamic t [(Text, Text)] -> m ()
+displayMessages respListDyn = 
+  elAttr "div" ("class" =: "allMessages") $ do
+    likeDynList <- simpleList respListDyn $ \pairDyn -> do
+      elAttr "div" ("class" =: "message") $ do
+        void $ dyn $ ffor pairDyn $ \(user, msg) -> do
+          el "span" $ text user
+          text (": " <> msg)
+
+        likeClickEv <- button "👍"
+        let likedThisEv = attachPromptlyDynWith (\(user, msg) _ -> (user, msg)) pairDyn likeClickEv
+
+        pure likedThisEv
+
+    let allLikesEv = switchPromptlyDyn (leftmost <$> likeDynList)
+    lastLikedDyn <- holdDyn Nothing (Just <$> allLikesEv)
+
+    el "div" $ dyn_ $ ffor lastLikedDyn $ \case
+      Nothing       -> blank
+      Just (user,m) -> el "p" $ text $ "You liked: " <> user <> ": " <> m
 
 mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m
          => AppState t -> RoutedT t () m ()
@@ -120,9 +127,6 @@ mainPage appState = mdo
       respTextDyn <- postAndGetMsgs inputEl loginEv
       respListDyn <- holdDyn [] respListEv
 
-    elAttr "div" ("class" =: "allMessages") $ do
-      void $ simpleList respListDyn $ \pairDyn -> do
-        let msgHtmlDyn = messageHtml <$> pairDyn
-        renderBlaze msgHtmlDyn
+    displayMessages respListDyn
   pure ()
 
