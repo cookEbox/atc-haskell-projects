@@ -16,12 +16,13 @@ import           Data.Maybe                  (fromMaybe)
 import           Data.Text                   as T (Text, isInfixOf, null)
 import           Data.Text.Encoding          (decodeUtf8)
 import           General.Buttons
+import           General.Elements
 import           General.Functions
 import           Language.Javascript.JSaddle (liftJSM)
 import           Obelisk.Frontend
 import           Obelisk.Route
 import           Obelisk.Route.Frontend
-import           Reflex.Dom.Core
+import           Reflex.Dom.Core hiding (el, elAttr, elAttr')
 
 logIn :: ( ToJSON a, SetRoute t (R FrontendRoute) (Client m)
           , Monad m
@@ -47,15 +48,15 @@ loginPage :: ObeliskWidget t (R FrontendRoute) m
           => AppState t -> RoutedT t () m ()
 loginPage appState = mdo
   loginControlButton SignupAndMain appState
-  el "h1" $ text "LOGIN PAGE"
-  (formEl, _) <- elAttr' "form" ("onsubmit" =: "return false;") $ do
+  el_ H1 $ text "LOGIN PAGE"
+  (formEl, _) <- elAttR_ FORM (OnSubmit "return false;") $ do
     rec
-      usernameEl <- el "div" $ do
-        el "label" $ text "Username: "
+      usernameEl <- el_ DIV $ do
+        el_ LABEL $ text "Username: "
         textBox NotPassword clearEv Persistent
 
-      passwordEl <- el "div" $ do
-        el "label" $ text "Password: "
+      passwordEl <- el_ DIV $ do
+        el_ LABEL $ text "Password: "
         textBox Password clearEv Persistent
 
       void $ button "Login"
@@ -72,6 +73,6 @@ loginPage appState = mdo
           loginDataEv       = tagger usernameDyn hashedPasswordDyn loginEv
 
       failureDyn <- logIn loginDataEv appState
-    el "div" $ dynText failureDyn
+    el_ DIV $ dynText failureDyn
   pure ()
 

@@ -29,6 +29,7 @@ library
     Pages.Main
     General.Functions
     General.Buttons
+    General.Elements
 
   ghc-options: -Wall -O -fno-show-valid-hole-fits
                -- unsafe code

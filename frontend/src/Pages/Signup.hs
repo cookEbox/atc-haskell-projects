@@ -15,11 +15,12 @@ import           Data.Maybe             (fromMaybe)
 import           Data.Text              as T
 import           Data.Text.Encoding     (decodeUtf8)
 import           General.Buttons
+import           General.Elements
 import           General.Functions
 import           Obelisk.Frontend
 import           Obelisk.Route
 import           Obelisk.Route.Frontend
-import           Reflex.Dom.Core
+import           Reflex.Dom.Core hiding (el, elAttr, elAttr')
 
 inputValidator :: (PostBuild t m, DomBuilder t m)
                => Event t a
@@ -66,19 +67,19 @@ signupPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m
            => AppState t -> RoutedT t () m ()
 signupPage appState = mdo
   loginControlButton LoginAndMain appState
-  el "hi" $ text "Signup page"
-  (formEl, _) <- elAttr' "form" ("onsubmit" =: "return false;") $ do
+  el_ H1 $ text "Signup page"
+  (formEl, _) <- elAttR_ FORM (OnSubmit "return false;") $ do
     rec
-      usernameEl <- el "div" $ do
-        el "label" $ text "Username: "
+      usernameEl <- el_ DIV $ do
+        el_ LABEL $ text "Username: "
         textBox NotPassword clearEv Persistent
 
-      passwordEl <- el "div" $ do
-        el "label" $ text "Password: "
+      passwordEl <- el_ DIV $ do
+        el_ LABEL $ text "Password: "
         textBox Password clearEv Persistent
 
-      sndPasswordEl <- el "div" $ do
-        el "label" $ text "Re-Enter Password: "
+      sndPasswordEl <- el_ DIV $ do
+        el_ LABEL $ text "Re-Enter Password: "
         textBox Password clearEv Persistent
 
       void $ button "Sign Up"
@@ -95,6 +96,6 @@ signupPage appState = mdo
           signupDataEv      = tagger usernameDyn hashedPasswordDyn signupEv
 
       failureDyn <- signUp signupDataEv
-    el "div" $ dynText failureDyn
+    el_ DIV $ dynText failureDyn
   pure ()
 
