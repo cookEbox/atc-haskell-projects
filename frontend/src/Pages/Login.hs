@@ -10,7 +10,6 @@ module Pages.Login where
 import           Common.Api
 import           Common.Route
 import           Control.Monad               (void)
-import           Control.Monad.IO.Class      (liftIO)
 import           Data.Aeson                  (ToJSON)
 import           Data.Maybe                  (fromMaybe)
 import           Data.Text                   as T (Text, isInfixOf, null)
@@ -18,7 +17,6 @@ import           Data.Text.Encoding          (decodeUtf8)
 import           General.Buttons
 import           General.Elements
 import           General.Functions
-import           Language.Javascript.JSaddle (liftJSM)
 import           Obelisk.Frontend
 import           Obelisk.Route
 import           Obelisk.Route.Frontend
@@ -35,10 +33,7 @@ logIn loginDataEv appState = do
         success = ffilter ("Success" `T.isInfixOf`) txtEv
         failure = ffilter (not . ("Success" `T.isInfixOf`)) txtEv
 
-    performEvent_ $ ffor success $ \_ -> liftJSM $ do
-      ct <- getCookies
-      let mParsed = statusCookieMaybe ct >>= parseCookie
-      liftIO $ triggerLoggedIn appState mParsed
+    void $ updateState appState success
 
     setRoute ((FrontendRoute_Main :/ ()) <$ success)
     holdDyn "" failure

@@ -80,3 +80,11 @@ tagger :: Reflex t
 tagger usernameDyn hashedPasswordDyn loginEv =
   tag (current $ UserDetailsReq <$> usernameDyn <*> hashedPasswordDyn) loginEv
 
+updateState :: (PerformEvent t1 m, MonadJSM (Performable m)) 
+            => AppState t2 -> Event t1 a -> m ()
+updateState appState success = do
+    performEvent_ $ ffor success $ \_ -> liftJSM $ do
+      ct <- getCookies
+      let mParsed = statusCookieMaybe ct >>= parseCookie
+      liftIO $ triggerLoggedIn appState mParsed
+
