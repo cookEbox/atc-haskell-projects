@@ -121,17 +121,27 @@ displayMessages appState respListDyn =
         likeClickEv <- button "👍"
         let likedThisEv 
               = attachPromptlyDynWith 
-                  (\(user, msg) _ -> (user, msg)) pairDyn likeClickEv
+                  (\(user, msg) _ -> (user, msg, "like")) pairDyn likeClickEv
 
-        pure likedThisEv
+        replyClickEv <- button "↩"
+        let replyEv 
+              = attachPromptlyDynWith 
+                  (\(user, msg) _ -> (user, msg, "replied")) pairDyn replyClickEv
 
-    let allLikesEv = switchDyn (leftmost <$> likeDynList)
+        trackClickEv <- button "📌"
+        let trackEv 
+              = attachPromptlyDynWith 
+                  (\(user, msg) _ -> (user, msg, "are tracking")) pairDyn trackClickEv
+
+        pure $ leftmost [likedThisEv, replyEv, trackEv]
+
+    let allLikesEv = switchDyn (leftmost <$> respDynList)
     lastLikedDyn <- holdDyn Nothing (Just <$> allLikesEv)
 
     el_ DIV $ dyn_ $ ffor lastLikedDyn $ \case
-      Nothing       -> blank
-      Just (user,m) -> el_ P $ text $ "You liked: " <> user <> ": " <> m
-
+      Nothing             -> blank
+      Just (user,msg,typ) -> el_ P $ text $ "You " <> typ <> ": " <> user <> ": " <> msg
+                        
 mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m
          => AppState t -> RoutedT t () m ()
 mainPage appState = mdo
