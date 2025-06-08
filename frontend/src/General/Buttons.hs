@@ -99,18 +99,18 @@ textBox :: DomBuilder t m
         -> Event t Text 
         -> Hideable t 
         -> m (InputElement EventResult (DomBuilderSpace m) t)
-textBox NotPassword event Persistent 
-  = inputElement $ def & inputElementConfig_setValue .~ event 
-textBox NotPassword event (Hideable event2) 
+textBox NotPassword clearEv Persistent 
+  = inputElement $ def & inputElementConfig_setValue .~ clearEv
+textBox NotPassword clearEv (Hideable hideEv) 
   = inputElement $ def 
-                 & inputElementConfig_setValue .~ event 
+                 & inputElementConfig_setValue .~ clearEv
                  & inputElementConfig_elementConfig 
                    . elementConfig_initialAttributes .~ ("disabled" =: "true")
                  & inputElementConfig_elementConfig 
-                   . elementConfig_modifyAttributes .~ event2
-textBox Password event _ 
+                   . elementConfig_modifyAttributes .~ hideEv
+textBox Password clearEv _ 
   = inputElement $ def
                  & inputElementConfig_elementConfig 
                    . elementConfig_initialAttributes .~ ("type" =: "password")
-                 & inputElementConfig_setValue .~ event
+                 & inputElementConfig_setValue .~ clearEv
 

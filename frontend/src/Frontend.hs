@@ -13,7 +13,6 @@ module Frontend where
 
 import           Common.Route
 import           Control.Monad               ((>=>))
-import Data.Text (Text)
 import           General.Functions
 import           Obelisk.Frontend
 import           Obelisk.Generated.Static

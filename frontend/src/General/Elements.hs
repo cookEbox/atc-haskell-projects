@@ -1,8 +1,4 @@
 {-# LANGUAGE DerivingStrategies  #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -41,5 +37,8 @@ elAttr_ :: forall t m a. DomBuilder t m
 elAttr_ tag attr = elAttr (showt tag) (showt attr =: label attr)
 
 elAttR_ :: forall t m a. DomBuilder t m
-        => Tag -> Attris -> m a -> m (Element EventResult (DomBuilderSpace m) t, a)
+        => Tag 
+        -> Attris 
+        -> m a 
+        -> m (Element EventResult (DomBuilderSpace m) t, a)
 elAttR_ tag attr = elAttr' (showt tag) (showt attr =: label attr)

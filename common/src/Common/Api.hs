@@ -52,7 +52,7 @@ data UserDetailsResp = UserDetailsResp
 instance FromJSON UserDetailsResp
 instance ToJSON UserDetailsResp
 
--- I need to add a Maybe Reply where you get either Nothing or Just UUID
+-- TODO: I need to add a Maybe Reply where you get either Nothing or Just UUID
 data MessageReq = MessageReq
   { reqUserName :: Text
   , userInput   :: Text
@@ -64,8 +64,8 @@ instance FromJSON MessageReq
 type UserName = Text
 type Msg = Text
 
--- I need to add another element to the tuple a List of messages or a list of message uuids i.e the replies 
--- I need to add the message uuid so that the message can be replied to
+-- TODO: I need to add another element to the tuple a List of messages or a list of message uuids i.e the replies 
+-- TODO: I need to add the message uuid so that the message can be replied to
 data MessageResp = MessageResp
   { responseMsg :: [(UserName, Msg)]
   } deriving stock (Show, Eq, Generic)

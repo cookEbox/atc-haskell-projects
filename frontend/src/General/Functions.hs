@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingStrategies  #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE OverloadedStrings   #-}
@@ -34,6 +35,7 @@ cookieWatcher = do
   cookieEvent <- performEvent (liftJSM getCookies <$ tick)
   holdDyn "" cookieEvent
 
+-- TODO: This can be deleted
 statusCookie :: Functor f => f Text -> f Bool
 statusCookie cookieDyn = isInfixOf "status=loggedIn" <$> cookieDyn
 
