@@ -23,7 +23,7 @@ import           Pages.Main
 import           Pages.Signup
 import           Reflex.Dom.Core
 
-initial :: ObeliskWidget t (R FrontendRoute) m => m (Dynamic t (Maybe (Text, Text)))
+initial :: ObeliskWidget t (R FrontendRoute) m => m (Dynamic t (Maybe (Auth, User)))
 initial = do
   nestedDyn <- prerender
     (pure $ constDyn Nothing)

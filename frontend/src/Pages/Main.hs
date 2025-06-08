@@ -28,9 +28,9 @@ import           Reflex.Dom.Core             hiding (el, elAttr, elAttr')
 
 selectCookies :: MonadWidget t m
               => Event t ()
-              -> m (Event t (Maybe (Text, Text)))
-selectCookies click = do
-  authEvent <- performEvent $ ffor click $ \_ -> do
+              -> m (Event t (Maybe (Auth, User)))
+selectCookies clickEv = do
+  authEvent <- performEvent $ ffor clickEv $ \_ -> do
     cookieText <- liftJSM getCookies
     pure (parseCookie cookieText)
   pure authEvent
@@ -59,15 +59,15 @@ postAndGetMsgs :: (Applicative m, Prerender t m)
 postAndGetMsgs inputEl loginEv =
   prerender (pure never) $ mdo
     rec
-      let nameAuthEv = fromMaybe ("", "") <$> nameAuthEvMaybe
+      let nameAuthEv = fromMaybe (Auth "", User "") <$> nameAuthEvMaybe
           msgEv      = tagPromptlyDyn (_inputElement_value inputEl) loginEv
           reqEv      = attachPromptlyDynWith
-                        (\msg (auth, user) -> MessageReq user msg auth)
+                        (\msg (Auth auth, User user) -> MessageReq user msg auth)
                         msgDyn
                         nameAuthEv
-          initText   = fmap (fromMaybe "" . _xhrResponse_responseText) initEv
+          initTextEv = fmap (fromMaybe "" . _xhrResponse_responseText) initEv
           triggerGet = void postEv
-          getText    = fmap (fromMaybe "" . _xhrResponse_responseText) getEv
+          getTextEv  = fmap (fromMaybe "" . _xhrResponse_responseText) getEv
 
       nameAuthEvMaybe <- selectCookies loginEv
       msgDyn          <- holdDyn "" msgEv
@@ -75,22 +75,44 @@ postAndGetMsgs inputEl loginEv =
       initEv          <- sendRequest get postbuild
       postEv          <- sendRequest post reqEv
       getEv           <- sendRequest get triggerGet
-    pure $ leftmost [initText, getText]
+    pure $ leftmost [initTextEv, getTextEv]
 
+-- TODO: Make this [(User, Message)]
 decodeJson :: Text -> [(Text,Text)]
 decodeJson t =
   case eitherDecodeStrict' (B8.pack $ unpack t) of
     Left  _err             -> [] -- TODO: handle this error better
     Right (MessageResp xs) -> xs
 
+replaceText :: Text -> Text -> [(Text, Text)] -> [(Text, Text)]
+replaceText newName userName respList = newEntry <$> respList
+  where 
+    ifName name          = if name == userName 
+                           then newName 
+                           else name
+    newEntry (name, msg) = (ifName name, msg) 
+
+replaceUserName :: Reflex t 
+                => Text 
+                -> Dynamic t Text 
+                -> Dynamic t [(Text, Text)] 
+                -> Dynamic t [(Text, Text)]
+replaceUserName newName userNameDyn respListDyn 
+  = zipDynWith replace userNameDyn respListDyn
+    where 
+      replace userName respList = replaceText newName userName respList
+
 displayMessages :: ( DomBuilder t m
                    , PostBuild t m
                    , MonadHold t m
                    , MonadFix m
-                   ) => Dynamic t [(Text, Text)] -> m ()
-displayMessages respListDyn =
+                   ) => AppState t -> Dynamic t [(Text, Text)] -> m ()
+displayMessages appState respListDyn =
+  -- TODO: only display buttons when logged in
   elAttr_ DIV (Class "allMessages") $ do
-    likeDynList <- simpleList respListDyn $ \pairDyn -> do
+    let userNameDyn = username . snd <$> fromMaybe (Auth "", User "") <$> appLoggedIn appState
+        userYouListDyn = replaceUserName "You" userNameDyn respListDyn
+    respDynList <- simpleList userYouListDyn $ \pairDyn -> do
       elAttr_ DIV (Class "message") $ do
         void $ dyn $ ffor pairDyn $ \(user, msg) -> do
           el_ SPAN $ text user
@@ -119,17 +141,17 @@ mainPage appState = mdo
 
   (formEl, _) <- elAttR_ FORM (OnSubmit "return false;") $ el_ DIV $ do
     rec
-      let respTextEv = switchDyn respTextDyn
-          respListEv = fmap decodeJson respTextEv
-          enterEv    = domEvent Submit formEl
-          nonEmpty   = not . null <$> _inputElement_value inputEl
-          loginEv    = gate (current nonEmpty) enterEv
-          clearEv    = "" <$ loginEv
+      let respTextEv  = switchDyn respTextDyn
+          respListEv  = fmap decodeJson respTextEv
+          enterEv     = domEvent Submit formEl
+          nonEmptyDyn = not . null <$> _inputElement_value inputEl
+          loginEv     = gate (current nonEmptyDyn) enterEv
+          clearEv     = "" <$ loginEv
 
       inputEl     <- el_ DIV $ input appState clearEv
       respTextDyn <- postAndGetMsgs inputEl loginEv
       respListDyn <- holdDyn [] respListEv
 
-    displayMessages respListDyn
+    displayMessages appState respListDyn
   pure ()
 

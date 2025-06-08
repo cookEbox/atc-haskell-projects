@@ -45,16 +45,19 @@ statusCookieMaybe cookieDyn =
     True  -> Just cookieDyn
     False -> Nothing
 
-parseCookie :: Text -> Maybe (Text, Text)
+data User = User { username  :: Text } deriving stock Eq
+data Auth = Auth { authtoken :: Text } deriving stock Eq
+
+parseCookie :: Text -> Maybe (Auth, User)
 parseCookie cookieText =
   let cookies = map strip $ splitOn ";" cookieText
-      authVal = listToMaybe [val | entry <- cookies, Just val <- [stripPrefix "auth=" entry]]
-      userVal = listToMaybe [val | entry <- cookies, Just val <- [stripPrefix "user=" entry]]
+      authVal = Auth <$> listToMaybe [val | entry <- cookies, Just val <- [stripPrefix "auth=" entry]]
+      userVal = User <$> listToMaybe [val | entry <- cookies, Just val <- [stripPrefix "user=" entry]]
   in (,) <$> authVal <*> userVal
 
 data AppState t = AppState
-  { appLoggedIn     :: Dynamic t (Maybe (Text, Text))
-  , triggerLoggedIn :: Maybe (Text, Text) -> IO ()
+  { appLoggedIn     :: Dynamic t (Maybe (Auth, User))
+  , triggerLoggedIn :: Maybe (Auth, User) -> IO ()
   }
 
 flattenDyn :: Reflex t => Dynamic t (Dynamic t a) -> Dynamic t a
