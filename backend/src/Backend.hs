@@ -15,6 +15,7 @@ import           Routes.Gotten
 import           Routes.Login
 import           Routes.Posted
 import           Routes.Signup
+import           Routes.Update
 import           Snap
 
 backend :: Backend BackendRoute FrontendRoute
@@ -27,11 +28,12 @@ backend = Backend
 
 backendHandlers :: R BackendRoute -> Snap ()
 backendHandlers = \case
-  BackendRoute_Post :/ () -> posted
-  BackendRoute_Get :/ () -> gotten
-  BackendRoute_Login :/ () -> login
-  BackendRoute_Logout :/ () -> logout
-  BackendRoute_Signup :/ () -> signup
+  BackendRoute_Post    :/ () -> posted
+  BackendRoute_Get     :/ () -> gotten
+  BackendRoute_Login   :/ () -> login
+  BackendRoute_Logout  :/ () -> logout
+  BackendRoute_Signup  :/ () -> signup
+  BackendRoute_Update  :/ () -> update
   BackendRoute_Missing :/ () -> do
     liftIO $ putStrLn "404: Route not found"
     modifyResponse $ setResponseStatus 404 "Not Found"

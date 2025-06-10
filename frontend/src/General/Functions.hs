@@ -14,7 +14,7 @@ import           Data.Aeson                  (ToJSON)
 import           Data.Map.Strict             (singleton, (!))
 import           Data.Maybe                  (listToMaybe)
 import           Data.Text                   (Text, isInfixOf, splitOn, strip,
-                                              stripPrefix)
+                                              stripPrefix, unpack)
 import           Data.Time.Clock             (getCurrentTime)
 import           Language.Javascript.JSaddle (JSM, MonadJSM, eval, liftJSM,
                                               strToText, valToStr)
@@ -45,19 +45,22 @@ statusCookieMaybe cookieDyn =
     True  -> Just cookieDyn
     False -> Nothing
 
-data User = User { username  :: Text } deriving stock Eq
-data Auth = Auth { authtoken :: Text } deriving stock Eq
+data User = User { username  :: Text    } deriving stock Eq
+data Auth = Auth { authtoken :: Text    } deriving stock Eq
+data UID  = UID  { userid    :: Integer } deriving stock Eq
+type CookieData = Maybe (Auth, User, UID)
 
-parseCookie :: Text -> Maybe (Auth, User)
+parseCookie :: Text -> CookieData
 parseCookie cookieText =
   let cookies = map strip $ splitOn ";" cookieText
       authVal = Auth <$> listToMaybe [val | entry <- cookies, Just val <- [stripPrefix "auth=" entry]]
       userVal = User <$> listToMaybe [val | entry <- cookies, Just val <- [stripPrefix "user=" entry]]
-  in (,) <$> authVal <*> userVal
+      idVal   = UID . read . unpack  <$> listToMaybe [val | entry <- cookies, Just val <- [stripPrefix "id=" entry]] 
+  in (,,) <$> authVal <*> userVal <*> idVal
 
 data AppState t = AppState
-  { appLoggedIn     :: Dynamic t (Maybe (Auth, User))
-  , triggerLoggedIn :: Maybe (Auth, User) -> IO ()
+  { appLoggedIn     :: Dynamic t CookieData
+  , triggerLoggedIn :: CookieData -> IO ()
   }
 
 flattenDyn :: Reflex t => Dynamic t (Dynamic t a) -> Dynamic t a

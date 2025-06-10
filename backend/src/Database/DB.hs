@@ -21,14 +21,15 @@ import           GHC.Int             (Int64)
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 Twits
-    name Text
-    password Text
+    name       Text
+    password   Text
+    follow     [Int64]
     UniqueTwit name
-    deriving Show
+    deriving Show Eq
 Tweets
-    user_id        Int64
     user_name      Text
-    parent_post_id (Maybe Int64)
+    likes          [Int64]
+    reply_id       [Int64]
     content        Text
     created_at     UTCTime
     deriving Show Eq

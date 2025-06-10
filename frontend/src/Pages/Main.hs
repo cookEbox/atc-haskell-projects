@@ -28,7 +28,7 @@ import           Reflex.Dom.Core             hiding (el, elAttr, elAttr')
 
 selectCookies :: MonadWidget t m
               => Event t ()
-              -> m (Event t (Maybe (Auth, User)))
+              -> m (Event t CookieData)
 selectCookies clickEv = do
   authEvent <- performEvent $ ffor clickEv $ \_ -> do
     cookieText <- liftJSM getCookies
@@ -53,22 +53,23 @@ input appState clearEv = do
   pure ie
 
 postAndGetMsgs :: (Applicative m, Prerender t m)
-            => InputElement er d t
-            -> Event t ()
-            -> m (Dynamic t (Event t Text))
+               => InputElement er d t
+               -> Event t ()
+               -> m (Dynamic t (Event t Text))
 postAndGetMsgs inputEl loginEv =
   prerender (pure never) $ mdo
     rec
-      let nameAuthEv = fromMaybe (Auth "", User "") <$> nameAuthEvMaybe
+      let nameAuthEv = fromMaybe (Auth "", User "", UID 0) <$> nameAuthEvMaybe
           msgEv      = tagPromptlyDyn (_inputElement_value inputEl) loginEv
           reqEv      = attachPromptlyDynWith
-                        (\msg (Auth auth, User user) -> MessageReq user msg auth)
+                        (\msg (Auth auth, User user, UID _) -> MessageReq user 0 msg auth)
                         msgDyn
                         nameAuthEv
           initTextEv = fmap (fromMaybe "" . _xhrResponse_responseText) initEv
           triggerGet = void postEv
           getTextEv  = fmap (fromMaybe "" . _xhrResponse_responseText) getEv
 
+-- TODO: This can probably be changed to check AppState
       nameAuthEvMaybe <- selectCookies loginEv
       msgDyn          <- holdDyn "" msgEv
       postbuild       <- getPostBuild
@@ -78,25 +79,24 @@ postAndGetMsgs inputEl loginEv =
     pure $ leftmost [initTextEv, getTextEv]
 
 -- TODO: Make this [(User, Message)]
-decodeJson :: Text -> [(Text,Text)]
+decodeJson :: Text -> [MessageResp]
 decodeJson t =
   case eitherDecodeStrict' (B8.pack $ unpack t) of
-    Left  _err             -> [] -- TODO: handle this error better
-    Right (MessageResp xs) -> xs
+    Left  _err              -> [] -- TODO: handle this error better
+    Right (MessageResps xs) -> xs
 
-replaceText :: Text -> Text -> [(Text, Text)] -> [(Text, Text)]
-replaceText newName userName respList = newEntry <$> respList
+replaceText :: Text -> Text -> [MessageResp] -> [MessageResp]
+replaceText newName userName respList = ifName <$> respList
   where 
-    ifName name          = if name == userName 
-                           then newName 
-                           else name
-    newEntry (name, msg) = (ifName name, msg) 
+    ifName msgResp = if resUserName msgResp == userName 
+                     then msgResp { resUserName = newName }
+                     else msgResp
 
 replaceUserName :: Reflex t 
                 => Text 
                 -> Dynamic t Text 
-                -> Dynamic t [(Text, Text)] 
-                -> Dynamic t [(Text, Text)]
+                -> Dynamic t [MessageResp] 
+                -> Dynamic t [MessageResp]
 replaceUserName newName userNameDyn respListDyn 
   = zipDynWith replace userNameDyn respListDyn
     where 
@@ -106,41 +106,57 @@ displayMessages :: ( DomBuilder t m
                    , PostBuild t m
                    , MonadHold t m
                    , MonadFix m
-                   ) => AppState t -> Dynamic t [(Text, Text)] -> m ()
-displayMessages appState respListDyn =
+                   , Prerender t m
+                   ) => AppState t -> Dynamic t [MessageResp] -> m ()
+displayMessages appState respListDyn = mdo
   -- TODO: only display buttons when logged in
   elAttr_ DIV (Class "allMessages") $ do
-    let userNameDyn = username . snd <$> fromMaybe (Auth "", User "") <$> appLoggedIn appState
-        userYouListDyn = replaceUserName "You" userNameDyn respListDyn
-    respDynList <- simpleList userYouListDyn $ \pairDyn -> do
-      elAttr_ DIV (Class "message") $ do
-        void $ dyn $ ffor pairDyn $ \(user, msg) -> do
-          el_ SPAN $ text user
-          text (": " <> msg)
+    rec
+      let userNameDyn = username . (\(_,u,_) -> u) <$> fromMaybe (Auth "", User "", UID 0) <$> appLoggedIn appState
+      let userIdDyn = userid . (\(_,_,i) -> i) <$> fromMaybe (Auth "", User "", UID 0) <$> appLoggedIn appState
+          userYouListDyn = replaceUserName "You" userNameDyn respListDyn
+      respDynList <- simpleList userYouListDyn $ \pairDyn -> do
+        elAttr_ DIV (Class "message") $ do
+          void $ dyn $ ffor pairDyn $ \msgResp -> do
+            let user = resUserName msgResp
+                msg  = message msgResp
+            el_ SPAN $ text user
+            text (": " <> msg)
+            text (pack . show $ likes msgResp) -- This needs to by a dynamic
+            
+          likeClickEv <- button "👍"
+          let zippedDyns = zipDyn userIdDyn pairDyn
+              likedMsgEv 
+                = attachPromptlyDynWith 
+                    (\(rid, msgResp) _ -> (MessageReply Nothing (Just Like) (msgId msgResp) rid)) zippedDyns likeClickEv
 
-        likeClickEv <- button "👍"
-        let likedThisEv 
-              = attachPromptlyDynWith 
-                  (\(user, msg) _ -> (user, msg, "like")) pairDyn likeClickEv
+          void $ prerender (pure ()) $ void $ sendRequest "supdate" likedMsgEv
+          let likedThisEv 
+                = attachPromptlyDynWith 
+                    (\msgResp _ -> (resUserName msgResp, message msgResp, "like")) pairDyn likeClickEv
 
-        replyClickEv <- button "↩"
-        let replyEv 
-              = attachPromptlyDynWith 
-                  (\(user, msg) _ -> (user, msg, "replied")) pairDyn replyClickEv
+          replyClickEv <- button "↩"
+          let replyEv 
+                = attachPromptlyDynWith 
+                    (\msgResp _ -> (resUserName msgResp, message msgResp, "replied")) pairDyn replyClickEv
 
-        trackClickEv <- button "📌"
-        let trackEv 
-              = attachPromptlyDynWith 
-                  (\(user, msg) _ -> (user, msg, "are tracking")) pairDyn trackClickEv
+          trackClickEv <- button "📌"
+          let trackEv 
+                = attachPromptlyDynWith 
+                    (\msgResp _ -> (resUserName msgResp, message msgResp, "are tracking")) pairDyn trackClickEv
 
-        pure $ leftmost [likedThisEv, replyEv, trackEv]
+          pure $ leftmost [likedThisEv, replyEv, trackEv]
 
-    let allLikesEv = switchDyn (leftmost <$> respDynList)
-    lastLikedDyn <- holdDyn Nothing (Just <$> allLikesEv)
+      let allLikesEv = switchDyn (leftmost <$> respDynList)
+      lastLikedDyn <- holdDyn Nothing (Just <$> allLikesEv)
 
     el_ DIV $ dyn_ $ ffor lastLikedDyn $ \case
       Nothing             -> blank
-      Just (user,msg,typ) -> el_ P $ text $ "You " <> typ <> ": " <> user <> ": " <> msg
+      Just (user,msg,typ) -> el_ P $ text 
+                                   $ "You " 
+                                   <> typ <> ": " 
+                                   <> user <> ": " 
+                                   <> msg
                         
 mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m
          => AppState t -> RoutedT t () m ()
