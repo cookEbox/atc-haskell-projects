@@ -20,7 +20,7 @@ gotten = do
                   { responseMsgs = (\(id, t) -> MessageResp 
                                                 (tweetsUser_name t) 
                                                 (tweetsContent t)
-                                                (toInteger $ length $ tweetsLikes t)
+                                                (toInteger <$> tweetsLikes t)
                                                 Nothing 
                                                 (toInteger $ fromSqlKey id)
                                    ) <$> tweets

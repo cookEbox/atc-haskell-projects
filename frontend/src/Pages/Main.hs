@@ -102,6 +102,30 @@ replaceUserName newName userNameDyn respListDyn
     where 
       replace userName respList = replaceText newName userName respList
 
+likeButton :: ( DomBuilder t m
+              , MonadFix m
+              , PostBuild t m
+              , Prerender t m 
+              ) => Dynamic t (Maybe Integer) 
+                -> Dynamic t MessageResp 
+                -> m ()
+likeButton userIdDynMb pairDyn = mdo 
+  dyn_ $ ffor userIdDynMb $ \case 
+    Nothing -> blank
+    Just rid -> do 
+      rec
+        (e, _) <- el' "button" $ dynText thumbsUpDyn
+        let bldMsgReply msgResp 
+              = MessageReply Nothing (Just Like) (msgId msgResp) rid 
+            iconSwitcher msgResp = if rid `elem` likes msgResp 
+                                   then "👍" 
+                                   else "▫️"
+            thumbsUpDyn  = iconSwitcher <$> pairDyn
+            likeClickEv  = domEvent Click e
+            msgReply     = bldMsgReply <$> pairDyn
+            likedMsgEv   = tagPromptlyDyn msgReply likeClickEv
+      void $ prerender (pure ()) $ void $ sendRequest "supdate" likedMsgEv
+
 displayMessages :: ( DomBuilder t m
                    , PostBuild t m
                    , MonadHold t m
@@ -110,30 +134,25 @@ displayMessages :: ( DomBuilder t m
                    ) => AppState t -> Dynamic t [MessageResp] -> m ()
 displayMessages appState respListDyn = mdo
   -- TODO: only display buttons when logged in
+  -- Like done
   elAttr_ DIV (Class "allMessages") $ do
     rec
-      let userNameDyn = username . (\(_,u,_) -> u) <$> fromMaybe (Auth "", User "", UID 0) <$> appLoggedIn appState
-      let userIdDyn = userid . (\(_,_,i) -> i) <$> fromMaybe (Auth "", User "", UID 0) <$> appLoggedIn appState
+      let loggedIn       = appLoggedIn appState
+          auuDyn         = fromMaybe (Auth "", User "", UID 0) <$> loggedIn
+          userNameDyn    = username . (\(_,u,_) -> u) <$> auuDyn
+          userIdDynMb    = fmap (userid . (\(_,_,i) -> i)) <$> loggedIn
           userYouListDyn = replaceUserName "You" userNameDyn respListDyn
       respDynList <- simpleList userYouListDyn $ \pairDyn -> do
         elAttr_ DIV (Class "message") $ do
           void $ dyn $ ffor pairDyn $ \msgResp -> do
             let user = resUserName msgResp
                 msg  = message msgResp
+                printlikes = pack . show . length . likes 
             el_ SPAN $ text user
             text (": " <> msg)
-            text (pack . show $ likes msgResp) -- This needs to by a dynamic
-            
-          likeClickEv <- button "👍"
-          let zippedDyns = zipDyn userIdDyn pairDyn
-              likedMsgEv 
-                = attachPromptlyDynWith 
-                    (\(rid, msgResp) _ -> (MessageReply Nothing (Just Like) (msgId msgResp) rid)) zippedDyns likeClickEv
+            text (printlikes msgResp) -- This needs to by a dynamic
 
-          void $ prerender (pure ()) $ void $ sendRequest "supdate" likedMsgEv
-          let likedThisEv 
-                = attachPromptlyDynWith 
-                    (\msgResp _ -> (resUserName msgResp, message msgResp, "like")) pairDyn likeClickEv
+          likeButton userIdDynMb pairDyn
 
           replyClickEv <- button "↩"
           let replyEv 
@@ -145,7 +164,7 @@ displayMessages appState respListDyn = mdo
                 = attachPromptlyDynWith 
                     (\msgResp _ -> (resUserName msgResp, message msgResp, "are tracking")) pairDyn trackClickEv
 
-          pure $ leftmost [likedThisEv, replyEv, trackEv]
+          pure $ leftmost [replyEv, trackEv]
 
       let allLikesEv = switchDyn (leftmost <$> respDynList)
       lastLikedDyn <- holdDyn Nothing (Just <$> allLikesEv)

@@ -74,7 +74,7 @@ instance FromJSON Reply
 data MessageResp = MessageResp
   { resUserName :: UserName
   , message     :: Msg
-  , likes       :: Integer
+  , likes       :: [Integer]
   , replies     :: Maybe MessageResps
   , msgId       :: Integer
   } deriving stock (Show, Eq, Generic)
