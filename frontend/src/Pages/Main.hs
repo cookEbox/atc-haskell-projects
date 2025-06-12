@@ -102,6 +102,30 @@ replaceUserName newName userNameDyn respListDyn
     where 
       replace userName respList = replaceText newName userName respList
 
+followButton :: ( DomBuilder t m
+              , MonadFix m
+              , PostBuild t m
+              , Prerender t m 
+              ) => Dynamic t (Maybe Integer) 
+                -> Dynamic t MessageResp 
+                -> m ()
+followButton userIdDynMb pairDyn = mdo 
+  dyn_ $ ffor userIdDynMb $ \case 
+    Nothing -> blank
+    Just rid -> do 
+      rec
+        (e, _) <- el' "button" $ dynText thumbsUpDyn
+        let bldMsgReply msgResp 
+              = MessageReply Nothing Nothing (Just Follow) (resUserId msgResp) rid 
+            iconSwitcher msgResp = if rid `elem` follows msgResp 
+                                   then "📌"
+                                   else "📍"
+            thumbsUpDyn   = iconSwitcher <$> pairDyn
+            followClickEv = domEvent Click e
+            msgReply      = bldMsgReply <$> pairDyn
+            followMsgEv   = tagPromptlyDyn msgReply followClickEv
+      void $ prerender (pure ()) $ void $ sendRequest "supdate" followMsgEv
+
 likeButton :: ( DomBuilder t m
               , MonadFix m
               , PostBuild t m
@@ -116,7 +140,7 @@ likeButton userIdDynMb pairDyn = mdo
       rec
         (e, _) <- el' "button" $ dynText thumbsUpDyn
         let bldMsgReply msgResp 
-              = MessageReply Nothing (Just Like) (msgId msgResp) rid 
+              = MessageReply Nothing (Just Like) Nothing (Just $ msgId msgResp) rid 
             iconSwitcher msgResp = if rid `elem` likes msgResp 
                                    then "👍" 
                                    else "▫️"
@@ -135,6 +159,7 @@ displayMessages :: ( DomBuilder t m
 displayMessages appState respListDyn = mdo
   -- TODO: only display buttons when logged in
   -- Like done
+  -- Follow done
   elAttr_ DIV (Class "allMessages") $ do
     rec
       let loggedIn       = appLoggedIn appState
@@ -144,6 +169,10 @@ displayMessages appState respListDyn = mdo
           userYouListDyn = replaceUserName "You" userNameDyn respListDyn
       respDynList <- simpleList userYouListDyn $ \pairDyn -> do
         elAttr_ DIV (Class "message") $ do
+
+          -- TODO: hide button if user 
+          followButton userIdDynMb pairDyn
+
           void $ dyn $ ffor pairDyn $ \msgResp -> do
             let user = resUserName msgResp
                 msg  = message msgResp
@@ -159,12 +188,8 @@ displayMessages appState respListDyn = mdo
                 = attachPromptlyDynWith 
                     (\msgResp _ -> (resUserName msgResp, message msgResp, "replied")) pairDyn replyClickEv
 
-          trackClickEv <- button "📌"
-          let trackEv 
-                = attachPromptlyDynWith 
-                    (\msgResp _ -> (resUserName msgResp, message msgResp, "are tracking")) pairDyn trackClickEv
 
-          pure $ leftmost [replyEv, trackEv]
+          pure $ leftmost [replyEv]
 
       let allLikesEv = switchDyn (leftmost <$> respDynList)
       lastLikedDyn <- holdDyn Nothing (Just <$> allLikesEv)

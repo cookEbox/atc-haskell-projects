@@ -10,7 +10,12 @@ import           Shared.Functions
 import           Snap
 
 whatUpdate :: MessageReply -> IO ()
-whatUpdate (MessageReply Nothing (Just _) pid rid) = updateMessageLikes pid rid
+whatUpdate (MessageReply Nothing (Just _) Nothing (Just pid) rid) = updateMessageLikes pid rid
+whatUpdate (MessageReply Nothing Nothing (Just _) (Just pid) rid) = do 
+  case pid == rid of 
+    True -> pure () 
+    False -> updateMessageFollows pid rid
+whatUpdate (MessageReply _ _ _ Nothing _ ) = error "No pid should not happen at whatUpdate"
 whatUpdate _ = undefined -- TODO: Update for reply messages
 
 update :: Snap ()

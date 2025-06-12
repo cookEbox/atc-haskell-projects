@@ -50,6 +50,17 @@ updateMessageLikes key rid = do
       incLikes  = L.nub . toggle . tweetsLikes . snd . tweet
   runSqlite "Twits.db" $ update keyid [TweetsLikes =. incLikes tweets]
 
+updateMessageFollows :: Integer -> Integer -> IO ()
+updateMessageFollows key rid = do
+  eUsers <- liftIO $ runSqlite "Twits.db" $ selectList [] [Desc TwitsName]
+  let users  = (\(Entity id u) -> (id, u)) <$> eUsers
+      keyid  = toSqlKey $ fromInteger key
+      rid64  = fromInteger rid
+      user   = head . filter (\id -> fst id == keyid)
+      toggle lst = if elem rid64 lst then L.delete rid64 lst else rid64 : lst
+      addFolls  = L.nub . toggle . twitsFollow . snd . user
+  runSqlite "Twits.db" $ update keyid [TwitsFollow =. addFolls users]
+
 signToken :: BS.ByteString -> AuthToken -> BS.ByteString
 signToken key token =
   BS.append payload sig

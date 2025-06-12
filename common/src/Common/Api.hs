@@ -68,14 +68,19 @@ instance FromJSON Like
 data Reply = Replies (Maybe [MessageReq]) deriving stock (Show, Eq, Generic)
 instance ToJSON Reply
 instance FromJSON Reply
+data Follow = Follow deriving stock (Show, Eq, Generic)
+instance ToJSON Follow
+instance FromJSON Follow
 
 -- TODO: I need to add another element to the tuple a List of messages or a list of message uuids i.e the replies
 -- TODO: I need to add the message uuid so that the message can be replied to
 data MessageResp = MessageResp
   { resUserName :: UserName
+  , resUserId   :: Maybe Integer
   , message     :: Msg
   , likes       :: [Integer]
   , replies     :: Maybe MessageResps
+  , follows     :: [Integer]
   , msgId       :: Integer
   } deriving stock (Show, Eq, Generic)
 instance ToJSON MessageResp
@@ -90,7 +95,8 @@ instance FromJSON MessageResps
 data MessageReply = MessageReply
   { reply     :: Maybe MessageReq
   , like      :: Maybe Like
-  , parentId  :: Integer
+  , follow    :: Maybe Follow
+  , parentId  :: (Maybe Integer)
   , replierId :: Integer
   } deriving stock (Show, Eq, Generic)
 instance ToJSON MessageReply
