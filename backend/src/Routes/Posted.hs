@@ -33,7 +33,7 @@ posted = do
       if authorised && isUser
       then do
         utc <- liftIO getCurrentTime
-        let newTweet = Tweets user [] [] reqMsg utc -- TODO: message id needs to be passed back to here
+        let newTweet = Tweets user [] [] reqMsg utc 
         void $ liftIO $ runSqlite "Twits.db" $ insert newTweet
       else
         writeLBS $ "{\"error\": \"Invalid Authorisation Token for" <> (LE.encodeUtf8 . LT.fromStrict $ userName) <> "\" }"

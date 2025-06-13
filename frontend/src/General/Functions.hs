@@ -35,10 +35,6 @@ cookieWatcher = do
   cookieEvent <- performEvent (liftJSM getCookies <$ tick)
   holdDyn "" cookieEvent
 
--- TODO: This can be deleted
-statusCookie :: Functor f => f Text -> f Bool
-statusCookie cookieDyn = isInfixOf "status=loggedIn" <$> cookieDyn
-
 statusCookieMaybe :: Text -> Maybe Text
 statusCookieMaybe cookieDyn =
   case isInfixOf "status=loggedIn" cookieDyn of

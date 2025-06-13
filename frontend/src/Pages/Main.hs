@@ -78,7 +78,6 @@ postAndGetMsgs inputEl loginEv =
       getEv           <- sendRequest get triggerGet
     pure $ leftmost [initTextEv, getTextEv]
 
--- TODO: Make this [(User, Message)]
 decodeJson :: Text -> [MessageResp]
 decodeJson t =
   case eitherDecodeStrict' (B8.pack $ unpack t) of
@@ -157,9 +156,7 @@ displayMessages :: ( DomBuilder t m
                    , Prerender t m
                    ) => AppState t -> Dynamic t [MessageResp] -> m ()
 displayMessages appState respListDyn = mdo
-  -- TODO: only display buttons when logged in
-  -- Like done
-  -- Follow done
+  -- TODO: Add reply button functionality
   elAttr_ DIV (Class "allMessages") $ do
     rec
       let loggedIn       = appLoggedIn appState
