@@ -167,11 +167,16 @@ displayMessages appState respListDyn = mdo
           userNameDyn    = username . (\(_,u,_) -> u) <$> auuDyn
           userIdDynMb    = fmap (userid . (\(_,_,i) -> i)) <$> loggedIn
           userYouListDyn = replaceUserName "You" userNameDyn respListDyn
-      respDynList <- simpleList userYouListDyn $ \pairDyn -> do
+      void $ simpleList userYouListDyn $ \pairDyn -> do
         elAttr_ DIV (Class "message") $ do
 
-          -- TODO: hide button if user 
-          followButton userIdDynMb pairDyn
+          let zippedDyn = zipDyn userIdDynMb pairDyn
+          dyn_ $ ffor zippedDyn $ \(mIn, msgResp) -> do 
+            let msgSenderId = resUserId msgResp 
+            case (/=) <$> msgSenderId <*> mIn of 
+              Nothing -> blank
+              (Just False) -> blank 
+              (Just True) -> followButton userIdDynMb pairDyn
 
           void $ dyn $ ffor pairDyn $ \msgResp -> do
             let user = resUserName msgResp
@@ -179,29 +184,11 @@ displayMessages appState respListDyn = mdo
                 printlikes = pack . show . length . likes 
             el_ SPAN $ text user
             text (": " <> msg)
-            text (printlikes msgResp) -- This needs to by a dynamic
+            text (printlikes msgResp) 
 
           likeButton userIdDynMb pairDyn
+    pure ()
 
-          replyClickEv <- button "↩"
-          let replyEv 
-                = attachPromptlyDynWith 
-                    (\msgResp _ -> (resUserName msgResp, message msgResp, "replied")) pairDyn replyClickEv
-
-
-          pure $ leftmost [replyEv]
-
-      let allLikesEv = switchDyn (leftmost <$> respDynList)
-      lastLikedDyn <- holdDyn Nothing (Just <$> allLikesEv)
-
-    el_ DIV $ dyn_ $ ffor lastLikedDyn $ \case
-      Nothing             -> blank
-      Just (user,msg,typ) -> el_ P $ text 
-                                   $ "You " 
-                                   <> typ <> ": " 
-                                   <> user <> ": " 
-                                   <> msg
-                        
 mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m
          => AppState t -> RoutedT t () m ()
 mainPage appState = mdo
