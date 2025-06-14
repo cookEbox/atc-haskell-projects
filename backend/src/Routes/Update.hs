@@ -3,26 +3,54 @@
 
 module Routes.Update where
 
-import           Common.Api
+import           Common.Api 
 import           Control.Monad.IO.Class  (liftIO)
-import           Data.Aeson              as A
+import           Data.Aeson              as A hiding (Key)
+import qualified Data.List               as L (delete, nub)
+import           Database.DB
+import           Database.Persist        as P hiding (Add, count)
+import           Database.Persist.Sql    (toSqlKey)
+import           Database.Persist.Sqlite (ConnectionPool, runSqlPool)
+import           Prelude                 hiding (id)
 import           Shared.Functions
 import           Snap
 
-whatUpdate :: MessageReply -> IO ()
-whatUpdate (MessageReply Nothing (Just _) Nothing (Just pid) rid) = updateMessageLikes pid rid
-whatUpdate (MessageReply Nothing Nothing (Just _) (Just pid) rid) = do 
-  case pid == rid of 
-    True -> pure () 
-    False -> updateMessageFollows pid rid
-whatUpdate (MessageReply _ _ _ Nothing _ ) = error "No pid should not happen at whatUpdate"
-whatUpdate _ = undefined -- TODO: Update for reply messages
+updateMessageLikes :: ConnectionPool -> Integer -> Integer -> IO ()
+updateMessageLikes pool key rid = do
+  eTweets <- liftIO $ runSqlPool (selectList [] [Desc TweetsCreated_at]) pool
+  let tweets = (\(Entity id t) -> (id, t)) <$> eTweets
+      keyid  = toSqlKey $ fromInteger key
+      rid64  = fromInteger rid
+      tweet  = head . filter (\id -> fst id == keyid)
+      toggle lst = if elem rid64 lst then L.delete rid64 lst else rid64 : lst
+      incLikes  = L.nub . toggle . tweetsLikes . snd . tweet
+  runSqlPool (P.update keyid [TweetsLikes =. incLikes tweets]) pool
 
-update :: Snap ()
-update = do
+updateMessageFollows :: ConnectionPool -> Integer -> Integer -> IO ()
+updateMessageFollows pool key rid = do
+  eUsers <- liftIO $ runSqlPool (selectList [] [Desc TwitsName]) pool
+  let users  = (\(Entity id u) -> (id, u)) <$> eUsers
+      keyid  = toSqlKey $ fromInteger key
+      rid64  = fromInteger rid
+      user   = head . filter (\id -> fst id == keyid)
+      toggle lst = if elem rid64 lst then L.delete rid64 lst else rid64 : lst
+      addFolls  = L.nub . toggle . twitsFollow . snd . user
+  runSqlPool (P.update keyid [TwitsFollow =. addFolls users]) pool
+
+whatUpdate :: ConnectionPool -> MessageReply -> IO ()
+whatUpdate pool (MessageReply Nothing (Just _) Nothing (Just pid) rid) = updateMessageLikes pool pid rid
+whatUpdate pool (MessageReply Nothing Nothing (Just _) (Just pid) rid) = do
+  case pid == rid of
+    True  -> pure ()
+    False -> updateMessageFollows pool pid rid
+whatUpdate _ (MessageReply _ _ _ Nothing _ ) = error "No pid should not happen at whatUpdate"
+whatUpdate _ _ = undefined -- TODO: Update for reply messages
+
+update :: ConnectionPool ->  Snap ()
+update pool = do
   req <- getRequestBody
   case A.decode req of
-    Just msgReply -> liftIO $ whatUpdate msgReply
+    Just msgReply -> liftIO $ whatUpdate pool msgReply
     Nothing -> do
       modifyResponse $ setResponseStatus 400 "Bad Request"
       modifyResponse $ setHeader "Content-Type" "application/json"

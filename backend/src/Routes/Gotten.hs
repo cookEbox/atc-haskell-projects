@@ -11,7 +11,7 @@ import           Data.Text               (Text)
 import           Database.DB
 import           Database.Persist        hiding (Add, count)
 import           Database.Persist.Sql    (fromSqlKey)
-import           Database.Persist.Sqlite (runSqlite)
+import           Database.Persist.Sqlite (runSqlPool, ConnectionPool)
 import           Prelude                 hiding (id)
 import           Snap
 
@@ -54,12 +54,10 @@ respBuilder twts usrs =
       ) <$> twts
     }
 
-gotten :: Snap ()
-gotten = do
-  eTweets <- liftIO $ runSqlite "Twits.db" 
-                    $ selectList [] [Desc TweetsCreated_at]
-  eUsers  <- liftIO $ runSqlite "Twits.db" 
-                    $ selectList [] [Desc TwitsName]
+gotten :: ConnectionPool ->  Snap ()
+gotten pool = do
+  eTweets <- liftIO $ runSqlPool (selectList [] [Desc TweetsCreated_at]) pool
+  eUsers  <- liftIO $ runSqlPool (selectList [] [Desc TwitsName]) pool
   let tweets   = (\(Entity id t)  -> (id, t))  <$> eTweets
       users    = (\(Entity uid u) -> (uid, u)) <$> eUsers
       response = respBuilder tweets users

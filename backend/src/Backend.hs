@@ -6,9 +6,10 @@ module Backend where
 
 import           Common.Route
 import           Control.Monad.IO.Class  (liftIO)
+import           Control.Monad.Logger    (runStdoutLoggingT)
 import           Database.DB
 import           Database.Persist.Sql    (runMigration)
-import           Database.Persist.Sqlite (runSqlite)
+import           Database.Persist.Sqlite (createSqlitePool, runSqlPool, ConnectionPool)
 import           Obelisk.Backend
 import           Obelisk.Route           as R
 import           Routes.Gotten
@@ -21,19 +22,20 @@ import           Snap
 backend :: Backend BackendRoute FrontendRoute
 backend = Backend
   { _backend_run = \serve -> do
-    runSqlite "Twits.db" $ do runMigration migrateAll
-    serve backendHandlers
+    pool <- runStdoutLoggingT $ createSqlitePool "Twits.db" 5
+    runSqlPool (runMigration migrateAll) pool
+    serve (backendHandlers pool)
   , _backend_routeEncoder = fullRouteEncoder
   }
 
-backendHandlers :: R BackendRoute -> Snap ()
-backendHandlers = \case
-  BackendRoute_Post    :/ () -> posted
-  BackendRoute_Get     :/ () -> gotten
-  BackendRoute_Login   :/ () -> login
+backendHandlers :: ConnectionPool -> R BackendRoute -> Snap ()
+backendHandlers pool = \case
+  BackendRoute_Post    :/ () -> posted pool
+  BackendRoute_Get     :/ () -> gotten pool
+  BackendRoute_Login   :/ () -> login  pool
   BackendRoute_Logout  :/ () -> logout
-  BackendRoute_Signup  :/ () -> signup
-  BackendRoute_Update  :/ () -> update
+  BackendRoute_Signup  :/ () -> signup pool
+  BackendRoute_Update  :/ () -> update pool
   BackendRoute_Missing :/ () -> do
     liftIO $ putStrLn "404: Route not found"
     modifyResponse $ setResponseStatus 404 "Not Found"

@@ -26,6 +26,7 @@ library
                , base64-bytestring
                , memory
                , ghc
+               , monad-logger
   exposed-modules:
     Backend
   other-modules:

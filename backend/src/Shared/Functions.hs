@@ -4,7 +4,6 @@
 module Shared.Functions where
 
 import           Common.Api
-import           Control.Monad.IO.Class  (liftIO)
 import           Crypto.Hash.Algorithms  (SHA256)
 import           Crypto.KDF.BCrypt       (hashPassword)
 import           Crypto.MAC.HMAC         hiding (update)
@@ -13,12 +12,10 @@ import           Data.ByteArray          (convert)
 import qualified Data.ByteString         as BS
 import qualified Data.ByteString.Base64  as B64
 import qualified Data.ByteString.Lazy    as LBS
-import qualified Data.List               as L (delete, nub)
 import           Data.Text               (Text, pack)
 import           Data.Text.Encoding      (decodeUtf8, encodeUtf8)
 import           Database.DB
 import           Database.Persist        hiding (Add, count)
-import           Database.Persist.Sql    (toSqlKey)
 import           Database.Persist.Sqlite (runSqlite)
 import           Maybes                  (isJust, rightToMaybe)
 import           Prelude                 hiding (id)
@@ -38,28 +35,6 @@ storeUser :: Text -> Text -> IO ()
 storeUser username password = do
   hashed <- hashPasswordSecure password
   runSqlite "Twits.db" $ insert_ (Twits username hashed [])
-
-updateMessageLikes :: Integer -> Integer -> IO ()
-updateMessageLikes key rid = do
-  eTweets <- liftIO $ runSqlite "Twits.db" $ selectList [] [Desc TweetsCreated_at]
-  let tweets = (\(Entity id t) -> (id, t)) <$> eTweets
-      keyid  = toSqlKey $ fromInteger key
-      rid64  = fromInteger rid
-      tweet  = head . filter (\id -> fst id == keyid)
-      toggle lst = if elem rid64 lst then L.delete rid64 lst else rid64 : lst
-      incLikes  = L.nub . toggle . tweetsLikes . snd . tweet
-  runSqlite "Twits.db" $ update keyid [TweetsLikes =. incLikes tweets]
-
-updateMessageFollows :: Integer -> Integer -> IO ()
-updateMessageFollows key rid = do
-  eUsers <- liftIO $ runSqlite "Twits.db" $ selectList [] [Desc TwitsName]
-  let users  = (\(Entity id u) -> (id, u)) <$> eUsers
-      keyid  = toSqlKey $ fromInteger key
-      rid64  = fromInteger rid
-      user   = head . filter (\id -> fst id == keyid)
-      toggle lst = if elem rid64 lst then L.delete rid64 lst else rid64 : lst
-      addFolls  = L.nub . toggle . twitsFollow . snd . user
-  runSqlite "Twits.db" $ update keyid [TwitsFollow =. addFolls users]
 
 signToken :: BS.ByteString -> AuthToken -> BS.ByteString
 signToken key token =

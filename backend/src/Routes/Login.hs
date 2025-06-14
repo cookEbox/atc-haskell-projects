@@ -13,7 +13,7 @@ import           Data.Time.Clock         (addUTCTime, getCurrentTime)
 import           Database.DB
 import           Database.Persist        hiding (Add, count)
 import           Database.Persist.Sql    (fromSqlKey)
-import           Database.Persist.Sqlite (runSqlite)
+import           Database.Persist.Sqlite (runSqlPool, ConnectionPool)
 import           Prelude                 hiding (id)
 import           Shared.Functions
 import           Snap
@@ -71,12 +71,12 @@ ifMaybeUser _ _ Nothing = do
   modifyResponse $ setResponseStatus 401 "Unauthorized"
   writeLBS "{\"error\": \"User not found\"}"
 
-login :: Snap ()
-login = do
+login :: ConnectionPool -> Snap ()
+login pool = do
   req <- getRequestBody
   case A.decode req of
     Just (UserDetailsReq username password) -> do
-      maybeUser <- liftIO $ runSqlite "Twits.db" $ getBy (UniqueTwit username)
+      maybeUser <- liftIO $ runSqlPool (getBy (UniqueTwit username)) pool
       ifMaybeUser username password maybeUser
     Nothing -> do
       modifyResponse $ setResponseStatus 400 "Bad Request"

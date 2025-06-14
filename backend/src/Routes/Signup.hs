@@ -7,16 +7,16 @@ import           Control.Monad.IO.Class  (liftIO)
 import           Data.Aeson              as A
 import           Database.DB
 import           Database.Persist        hiding (Add, count)
-import           Database.Persist.Sqlite (runSqlite)
+import           Database.Persist.Sqlite (runSqlPool, ConnectionPool)
 import           Shared.Functions
 import           Snap
 
-signup :: Snap ()
-signup = do
+signup :: ConnectionPool -> Snap ()
+signup pool = do
   req <- getRequestBody
   case A.decode req of
     Just (UserDetailsReq username password) -> do
-      maybeUser <- liftIO $ runSqlite "Twits.db" $ getBy (UniqueTwit username)
+      maybeUser <- liftIO $ runSqlPool (getBy (UniqueTwit username)) pool
       case maybeUser of
         Just (Entity _ _) -> do
           modifyResponse $ setResponseStatus 401 "Unauthorized"

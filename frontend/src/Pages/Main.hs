@@ -14,7 +14,7 @@ import           Control.Monad               (void)
 import           Control.Monad.Fix           (MonadFix)
 import           Data.Aeson                  (eitherDecodeStrict')
 import qualified Data.ByteString.Char8       as B8
-import           Data.Maybe                  (fromMaybe, isJust, fromJust)
+import           Data.Maybe                  (fromMaybe, isJust)
 import           Data.Text                   (Text, null, pack, unpack)
 import           General.Buttons
 import           General.Elements
