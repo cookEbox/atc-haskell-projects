@@ -105,18 +105,20 @@ followButton :: ( DomBuilder t m
               , MonadFix m
               , PostBuild t m
               , Prerender t m 
-              ) => Dynamic t Integer 
+              ) => Dynamic t (Maybe Integer) 
                 -> Dynamic t MessageResp 
                 -> m ()
-followButton userIdDyn pairDyn = mdo 
-  dyn_ $ ffor userIdDyn $ \rid -> do
+followButton userIdDynMb pairDyn = mdo 
+  dyn_ $ ffor userIdDynMb $ \case 
+    Nothing -> blank
+    Just rid -> do 
       rec
         (e, _) <- el' "button" $ dynText thumbsUpDyn
         let bldMsgReply msgResp 
               = MessageReply Nothing Nothing (Just Follow) (resUserId msgResp) rid 
             iconSwitcher msgResp = if rid `elem` follows msgResp 
-                                   then "📌" -- following
-                                   else "📍" -- not following
+                                   then "📌"
+                                   else "📍"
             thumbsUpDyn   = iconSwitcher <$> pairDyn
             followClickEv = domEvent Click e
             msgReply      = bldMsgReply <$> pairDyn
@@ -171,7 +173,7 @@ displayMessages appState respListDyn = mdo
             case (/=) <$> msgSenderId <*> mIn of 
               Nothing -> blank
               (Just False) -> blank 
-              (Just True) -> followButton (fromJust <$> userIdDynMb) pairDyn -- fromJust is safe as value is a Just
+              (Just True) -> followButton userIdDynMb pairDyn
 
           void $ dyn $ ffor pairDyn $ \msgResp -> do
             let user = resUserName msgResp
