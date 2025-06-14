@@ -14,7 +14,7 @@ import           Control.Monad               (void)
 import           Control.Monad.Fix           (MonadFix)
 import           Data.Aeson                  (eitherDecodeStrict')
 import qualified Data.ByteString.Char8       as B8
-import           Data.Maybe                  (fromMaybe, isJust)
+import           Data.Maybe                  (fromMaybe, isJust, fromJust)
 import           Data.Text                   (Text, null, pack, unpack)
 import           General.Buttons
 import           General.Elements
@@ -105,20 +105,18 @@ followButton :: ( DomBuilder t m
               , MonadFix m
               , PostBuild t m
               , Prerender t m 
-              ) => Dynamic t (Maybe Integer) 
+              ) => Dynamic t Integer 
                 -> Dynamic t MessageResp 
                 -> m ()
-followButton userIdDynMb pairDyn = mdo 
-  dyn_ $ ffor userIdDynMb $ \case 
-    Nothing -> blank
-    Just rid -> do 
+followButton userIdDyn pairDyn = mdo 
+  dyn_ $ ffor userIdDyn $ \rid -> do
       rec
         (e, _) <- el' "button" $ dynText thumbsUpDyn
         let bldMsgReply msgResp 
               = MessageReply Nothing Nothing (Just Follow) (resUserId msgResp) rid 
             iconSwitcher msgResp = if rid `elem` follows msgResp 
-                                   then "📌"
-                                   else "📍"
+                                   then "📌" -- following
+                                   else "📍" -- not following
             thumbsUpDyn   = iconSwitcher <$> pairDyn
             followClickEv = domEvent Click e
             msgReply      = bldMsgReply <$> pairDyn
@@ -173,7 +171,7 @@ displayMessages appState respListDyn = mdo
             case (/=) <$> msgSenderId <*> mIn of 
               Nothing -> blank
               (Just False) -> blank 
-              (Just True) -> followButton userIdDynMb pairDyn
+              (Just True) -> followButton (fromJust <$> userIdDynMb) pairDyn -- fromJust is safe as value is a Just
 
           void $ dyn $ ffor pairDyn $ \msgResp -> do
             let user = resUserName msgResp
