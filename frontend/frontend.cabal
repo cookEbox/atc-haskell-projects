@@ -21,12 +21,15 @@ library
                , containers
                , blaze-html
                , blaze-markup
+               , data-default
+               , containers
   exposed-modules:
     Frontend
   other-modules: 
     Pages.Login
     Pages.Signup
     Pages.Main
+    Pages.WebPlug
     General.Functions
     General.Buttons
     General.Elements

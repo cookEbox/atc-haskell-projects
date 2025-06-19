@@ -21,6 +21,7 @@ import           Data.Text                (Text, pack)
 import           Data.Text.Encoding       (encodeUtf8)
 import           Data.Time                (UTCTime)
 import           GHC.Generics             (Generic)
+import Data.Map (Map)
 
 post :: Text
 post = "post"
@@ -101,3 +102,21 @@ instance FromJSON MessageReply
 hashForSending :: Text -> I.ByteString
 hashForSending password =
   encodeUtf8 $ pack $ show (hashWith SHA256 (encodeUtf8 password))
+
+data MessageRespS = MessageRespS
+  { resUserNameS :: UserName
+  , resUserIdS   :: Maybe Integer
+  , messageS     :: Msg
+  , likesS       :: [Integer]
+  , repliesS     :: Maybe MessageResps
+  , followsS     :: [Integer]
+  , createdS     :: UTCTime
+  } deriving stock (Show, Eq, Generic)
+instance ToJSON MessageRespS
+instance FromJSON MessageRespS
+
+data MessageRespsS = MessageRespsS 
+  { responseMsgsS :: Map Integer MessageRespS
+  } deriving stock (Show, Eq, Generic)
+instance ToJSON MessageRespsS
+instance FromJSON MessageRespsS

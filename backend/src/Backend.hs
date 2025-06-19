@@ -9,7 +9,8 @@ import           Control.Monad.IO.Class  (liftIO)
 import           Control.Monad.Logger    (runStdoutLoggingT)
 import           Database.DB
 import           Database.Persist.Sql    (runMigration)
-import           Database.Persist.Sqlite (createSqlitePool, runSqlPool, ConnectionPool)
+import           Database.Persist.Sqlite (ConnectionPool, createSqlitePool,
+                                          runSqlPool)
 import           Obelisk.Backend
 import           Obelisk.Route           as R
 import           Routes.Gotten
@@ -17,6 +18,7 @@ import           Routes.Login
 import           Routes.Posted
 import           Routes.Signup
 import           Routes.Update
+import           Routes.WebSocket
 import           Snap
 
 backend :: Backend BackendRoute FrontendRoute
@@ -30,13 +32,14 @@ backend = Backend
 
 backendHandlers :: ConnectionPool -> R BackendRoute -> Snap ()
 backendHandlers pool = \case
-  BackendRoute_Post    :/ () -> posted pool
-  BackendRoute_Get     :/ () -> gotten pool
-  BackendRoute_Login   :/ () -> login  pool
-  BackendRoute_Logout  :/ () -> logout
-  BackendRoute_Signup  :/ () -> signup pool
-  BackendRoute_Update  :/ () -> update pool
-  BackendRoute_Missing :/ () -> do
+  BackendRoute_Post      :/ () -> posted    pool
+  BackendRoute_Get       :/ () -> gotten    pool
+  BackendRoute_Login     :/ () -> login     pool
+  BackendRoute_Logout    :/ () -> logout
+  BackendRoute_Signup    :/ () -> signup    pool
+  BackendRoute_Update    :/ () -> update    pool
+  BackendRoute_WebSocket :/ () -> websocket pool
+  BackendRoute_Missing   :/ () -> do
     liftIO $ putStrLn "404: Route not found"
     modifyResponse $ setResponseStatus 404 "Not Found"
     writeBS "404 - Not Found"

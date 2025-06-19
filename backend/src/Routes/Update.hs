@@ -37,6 +37,7 @@ updateMessageFollows pool key rid = do
       addFolls  = L.nub . toggle . twitsFollow . snd . user
   runSqlPool (P.update keyid [TwitsFollow =. addFolls users]) pool
 
+-- TODO: Update MessageReply should take auth token and validate before action
 whatUpdate :: ConnectionPool -> MessageReply -> IO ()
 whatUpdate pool (MessageReply Nothing (Just _) Nothing (Just pid) rid) = updateMessageLikes pool pid rid
 whatUpdate pool (MessageReply Nothing Nothing (Just _) (Just pid) rid) = do

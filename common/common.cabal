@@ -10,6 +10,7 @@ library
                , text
                , aeson
                , uuid
+               , containers
   exposed-modules:
     Common.Api
     Common.Route

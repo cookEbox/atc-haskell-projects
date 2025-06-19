@@ -27,6 +27,10 @@ library
                , memory
                , ghc
                , monad-logger
+               , websockets-snap
+               , websockets
+               , containers
+               , directory
   exposed-modules:
     Backend
   other-modules:
@@ -34,6 +38,8 @@ library
     Routes.Posted
     Routes.Gotten
     Routes.Signup
+    Routes.Updates
+    Routes.WebSocket
     Database.DB
     Shared.Functions
 

@@ -22,36 +22,40 @@ import           Obelisk.Route
 import           Obelisk.Route.TH
 
 data BackendRoute :: * -> * where
-  BackendRoute_Missing :: BackendRoute ()
-  BackendRoute_Post    :: BackendRoute ()
-  BackendRoute_Get     :: BackendRoute ()
-  BackendRoute_Login   :: BackendRoute ()
-  BackendRoute_Logout  :: BackendRoute ()
-  BackendRoute_Signup  :: BackendRoute ()
-  BackendRoute_Update  :: BackendRoute ()
+  BackendRoute_Missing   :: BackendRoute ()
+  BackendRoute_Post      :: BackendRoute ()
+  BackendRoute_Get       :: BackendRoute ()
+  BackendRoute_Login     :: BackendRoute ()
+  BackendRoute_Logout    :: BackendRoute ()
+  BackendRoute_Signup    :: BackendRoute ()
+  BackendRoute_Update    :: BackendRoute ()
+  BackendRoute_WebSocket :: BackendRoute ()
 
 data FrontendRoute :: * -> * where
-  FrontendRoute_Main   :: FrontendRoute ()
-  FrontendRoute_Login  :: FrontendRoute ()
-  FrontendRoute_Signup :: FrontendRoute ()
+  FrontendRoute_Main    :: FrontendRoute ()
+  FrontendRoute_Login   :: FrontendRoute ()
+  FrontendRoute_Signup  :: FrontendRoute ()
+  FrontendRoute_WebPlug :: FrontendRoute ()
 
 fullRouteEncoder
   :: Encoder (Either Text) Identity (R (FullRoute BackendRoute FrontendRoute)) PageName
 fullRouteEncoder = mkFullRouteEncoder
   (FullRoute_Backend BackendRoute_Missing :/ ())
   (\case
-    BackendRoute_Missing -> PathSegment "smissing" $ unitEncoder mempty
-    BackendRoute_Post    -> PathSegment post       $ unitEncoder mempty
-    BackendRoute_Get     -> PathSegment get        $ unitEncoder mempty
-    BackendRoute_Login   -> PathSegment "slogin"   $ unitEncoder mempty
-    BackendRoute_Logout  -> PathSegment "slogout"  $ unitEncoder mempty
-    BackendRoute_Signup  -> PathSegment "ssignup"  $ unitEncoder mempty
-    BackendRoute_Update  -> PathSegment "supdate"  $ unitEncoder mempty
+    BackendRoute_Missing   -> PathSegment "smissing"  $ unitEncoder mempty
+    BackendRoute_Post      -> PathSegment post        $ unitEncoder mempty
+    BackendRoute_Get       -> PathSegment get         $ unitEncoder mempty
+    BackendRoute_Login     -> PathSegment "slogin"    $ unitEncoder mempty
+    BackendRoute_Logout    -> PathSegment "slogout"   $ unitEncoder mempty
+    BackendRoute_Signup    -> PathSegment "ssignup"   $ unitEncoder mempty
+    BackendRoute_Update    -> PathSegment "supdate"   $ unitEncoder mempty
+    BackendRoute_WebSocket -> PathSegment "websocket" $ unitEncoder mempty
   )
   (\case
-    FrontendRoute_Login  -> PathSegment "login"  $ unitEncoder mempty
-    FrontendRoute_Signup -> PathSegment "signup" $ unitEncoder mempty
-    FrontendRoute_Main   -> PathEnd              $ unitEncoder mempty
+    FrontendRoute_Login   -> PathSegment "login"  $ unitEncoder mempty
+    FrontendRoute_Signup  -> PathSegment "signup" $ unitEncoder mempty
+    FrontendRoute_Main    -> PathEnd              $ unitEncoder mempty
+    FrontendRoute_WebPlug -> PathSegment "plug"   $ unitEncoder mempty
   )
 
 concat <$> mapM deriveRouteComponent
