@@ -4,25 +4,25 @@
 module Routes.WebSocket where
 
 import           Common.Api
-import           Control.Concurrent      (threadDelay)
-import           Control.Monad           (when)
-import           Control.Monad.IO.Class  (liftIO)
-import           Data.Aeson              as A hiding (Key)
-import qualified Data.ByteString.Lazy    as BL
-import qualified Data.Map                as M
-import           Data.Maybe              (fromMaybe, listToMaybe)
-import           Data.Text               (Text)
-import           Data.Time.Clock         (NominalDiffTime, diffUTCTime,
-                                          getCurrentTime)
+import           Control.Concurrent         (threadDelay)
+import           Control.Monad              (forever, when)
+import           Control.Monad.IO.Class     (liftIO)
+import           Control.Monad.State.Strict (StateT, evalStateT, get, put)
+import           Data.Aeson                 as A hiding (Key)
+import qualified Data.Map                   as M
+import           Data.Maybe                 (fromMaybe, listToMaybe)
+import           Data.Text                  (Text)
+import           Data.Time.Clock            (UTCTime, NominalDiffTime,
+                                             diffUTCTime, getCurrentTime)
 import           Database.DB
-import           Database.Persist        hiding (Add, count)
-import           Database.Persist.Sql    (fromSqlKey)
-import           Database.Persist.Sqlite (ConnectionPool, runSqlPool)
+import           Database.Persist           hiding (Add, count, get)
+import           Database.Persist.Sql       (fromSqlKey)
+import           Database.Persist.Sqlite    (ConnectionPool, runSqlPool)
 import           Network.WebSockets
 import           Network.WebSockets.Snap
-import           Prelude                 hiding (id)
+import           Prelude                    hiding (id)
 import           Snap
-import           System.Directory        (getModificationTime)
+import           System.Directory           (getModificationTime)
 
 wasRecentlyModified :: FilePath -> NominalDiffTime -> IO Bool
 wasRecentlyModified dbPath threshold = do
@@ -70,27 +70,42 @@ respBuilder twts usrs =
       )
     ) <$> twts
 
-websocket :: ConnectionPool -> Snap ()
-websocket pool = runWebSocketsSnap $ myWebSocketApp pool
+getDelta :: ConnectionPool -> UTCTime -> IO (UTCTime, [Entity Tweets])
+getDelta pool lastTime = do
+  tweets <- runSqlPool (selectList [TweetsUpdated_at >=. lastTime] [Desc TweetsCreated_at]) pool
+  nowish <- runSqlPool (selectFirst [] [Desc TweetsUpdated_at, LimitTo 1]) pool
+  let now = case nowish of 
+            Just (Entity _ tweet) -> tweetsUpdated_at tweet
+            Nothing               -> lastTime
+  pure (now, tweets)
+
+entityToPair :: Entity b -> (Key b, b)
+entityToPair (Entity k v) = (k, v)
+
+poolLoop :: ConnectionPool -> Connection -> StateT UTCTime IO () 
+poolLoop pool conn = forever $ do
+  liftIO $ threadDelay (500 * 1000)  -- 500 ms
+  changedDb  <- liftIO $ wasRecentlyModified "Twits.db"     0.5
+  changedWAL <- liftIO $ wasRecentlyModified "Twits.db-wal" 0.5
+  when (changedDb || changedWAL) $ do
+    lastTime <- get
+    (new, tweets') <- liftIO $ getDelta pool lastTime
+    users' <- liftIO $ runSqlPool (selectList [] [Desc TwitsName])    pool
+    let response' = respBuilder (map entityToPair tweets') (map entityToPair users')
+    liftIO $ sendTextData conn (A.encode response')
+    put new
 
 myWebSocketApp :: ConnectionPool -> ServerApp
 myWebSocketApp pool pending = do
   eTweets <- liftIO $ runSqlPool (selectList [] [Desc TweetsCreated_at]) pool
   eUsers  <- liftIO $ runSqlPool (selectList [] [Desc TwitsName]) pool
-  let tweets   = (\(Entity id t)  -> (id, t))  <$> eTweets
-      users    = (\(Entity uid u) -> (uid, u)) <$> eUsers
+  let tweets   = entityToPair <$> eTweets
+      users    = entityToPair <$> eUsers
       response = respBuilder tweets users
   conn <- acceptRequest pending
   sendTextData conn (A.encode response)
-  let loop = do
-        threadDelay (500 * 1000)  -- 500 ms
-        changed <- wasRecentlyModified "mydatabase.sqlite" 0.5
-        when changed $ do
-          tweets' <- runSqlPool (selectList [] [Desc TweetsCreated_at]) pool
-          users' <- runSqlPool (selectList [] [Desc TwitsName])    pool
-          let response' = respBuilder (map entityToPair tweets') (map entityToPair users')
-          sendTextData conn (BL.toStrict $ A.encode response')
-        loop
-  loop
-  where
-    entityToPair (Entity k v) = (k, v)
+  now <- getCurrentTime
+  liftIO $ evalStateT (poolLoop pool conn) now
+
+websocket :: ConnectionPool -> Snap ()
+websocket pool = runWebSocketsSnap $ myWebSocketApp pool

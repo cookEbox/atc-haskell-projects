@@ -33,7 +33,7 @@ posted pool = do
       if authorised && isUser
       then do
         utc <- liftIO getCurrentTime
-        let newTweet = Tweets user [] [] reqMsg utc 
+        let newTweet = Tweets user [] [] reqMsg utc utc
         void $ liftIO $ runSqlPool (insert newTweet) pool
       else
         writeLBS $ "{\"error\": \"Invalid Authorisation Token for" <> (LE.encodeUtf8 . LT.fromStrict $ userName) <> "\" }"

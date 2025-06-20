@@ -73,9 +73,9 @@ postAndGetMsgs inputEl loginEv =
       nameAuthEvMaybe <- selectCookies loginEv
       msgDyn          <- holdDyn "" msgEv
       postbuild       <- getPostBuild
-      initEv          <- sendRequest get postbuild
-      postEv          <- sendRequest post reqEv
-      getEv           <- sendRequest get triggerGet
+      initEv          <- sendRequest "get" postbuild
+      postEv          <- sendRequest "post" reqEv
+      getEv           <- sendRequest "get" triggerGet
     pure $ leftmost [initTextEv, getTextEv]
 
 decodeJson :: Text -> [MessageResp]

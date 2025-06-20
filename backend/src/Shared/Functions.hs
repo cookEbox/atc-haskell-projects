@@ -14,14 +14,15 @@ import qualified Data.ByteString.Base64  as B64
 import qualified Data.ByteString.Lazy    as LBS
 import           Data.Text               (Text, pack)
 import           Data.Text.Encoding      (decodeUtf8, encodeUtf8)
+import           Data.Time.Clock         (getCurrentTime)
 import           Database.DB
 import           Database.Persist        hiding (Add, count)
 import           Database.Persist.Sqlite (runSqlite)
 import           Maybes                  (isJust, rightToMaybe)
 import           Prelude                 hiding (id)
 import           Snap
--- import           System.Environment      (getEnv)
 import qualified System.IO.Streams       as Streams (toList)
+-- import           System.Environment      (getEnv)
 
 getRequestBody :: MonadSnap m => m LBS.ByteString
 getRequestBody = LBS.fromChunks <$> runRequestBody Streams.toList
@@ -33,8 +34,9 @@ hashPasswordSecure password = do
 
 storeUser :: Text -> Text -> IO ()
 storeUser username password = do
+  utc <- getCurrentTime
   hashed <- hashPasswordSecure password
-  runSqlite "Twits.db" $ insert_ (Twits username hashed [])
+  runSqlite "Twits.db" $ insert_ (Twits username hashed [] utc)
 
 signToken :: BS.ByteString -> AuthToken -> BS.ByteString
 signToken key token =

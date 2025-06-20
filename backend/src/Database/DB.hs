@@ -25,13 +25,15 @@ Twits
     password   Text
     follow     [Int64]
     UniqueTwit name
+    updated_at UTCTime
     deriving Show Eq
 Tweets
-    user_name      Text
-    likes          [Int64]
-    reply_id       [Int64]
-    content        Text
-    created_at     UTCTime
+    user_name  Text
+    likes      [Int64]
+    reply_id   [Int64]
+    content    Text
+    created_at UTCTime
+    updated_at UTCTime
     deriving Show Eq
 |]
 

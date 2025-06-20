@@ -31,6 +31,7 @@ library
                , websockets
                , containers
                , directory
+               , mtl
   exposed-modules:
     Backend
   other-modules:

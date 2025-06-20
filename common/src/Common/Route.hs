@@ -14,7 +14,6 @@
 {-# LANGUAGE TypeFamilies          #-}
 module Common.Route where
 
-import           Common.Api
 import           Data.Functor.Identity
 import           Data.Text                (Text)
 
@@ -43,8 +42,8 @@ fullRouteEncoder = mkFullRouteEncoder
   (FullRoute_Backend BackendRoute_Missing :/ ())
   (\case
     BackendRoute_Missing   -> PathSegment "smissing"  $ unitEncoder mempty
-    BackendRoute_Post      -> PathSegment post        $ unitEncoder mempty
-    BackendRoute_Get       -> PathSegment get         $ unitEncoder mempty
+    BackendRoute_Post      -> PathSegment "post"      $ unitEncoder mempty
+    BackendRoute_Get       -> PathSegment "get"       $ unitEncoder mempty
     BackendRoute_Login     -> PathSegment "slogin"    $ unitEncoder mempty
     BackendRoute_Logout    -> PathSegment "slogout"   $ unitEncoder mempty
     BackendRoute_Signup    -> PathSegment "ssignup"   $ unitEncoder mempty

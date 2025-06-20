@@ -23,12 +23,6 @@ import           Data.Time                (UTCTime)
 import           GHC.Generics             (Generic)
 import Data.Map (Map)
 
-post :: Text
-post = "post"
-
-get :: Text
-get = "get"
-
 data AuthToken = AuthToken
   { authUserId :: UserName
   , authIssued :: UTCTime
