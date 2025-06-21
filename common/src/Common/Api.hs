@@ -105,6 +105,7 @@ data MessageRespS = MessageRespS
   , repliesS     :: Maybe MessageResps
   , followsS     :: [Integer]
   , createdS     :: UTCTime
+  , msgIdS       :: Integer
   } deriving stock (Show, Eq, Generic)
 instance ToJSON MessageRespS
 instance FromJSON MessageRespS

@@ -70,6 +70,7 @@ respBuilder twts usrs =
          Nothing
          (followedBy (tweetsUser_name t) usrs)
          (tweetsCreated_at t)
+         (toInteger $ fromSqlKey id)
       )
     ) <$> twts
 
@@ -106,9 +107,9 @@ poolLoop pool conn = forever $ do
 
 runWebSocket :: ConnectionPool -> ServerApp
 runWebSocket pool pending = do
-  (eTweets, eUsers) <- runDB pool $ do 
+  (eTweets, eUsers) <- runDB pool $ do
     twts <- selectList [] [Desc TweetsCreated_at]
-    usrs <- selectList [] [Desc TwitsName]  
+    usrs <- selectList [] [Desc TwitsName]
     pure (twts, usrs)
   let tweets   = entityToPair <$> eTweets
       users    = entityToPair <$> eUsers

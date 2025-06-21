@@ -15,7 +15,7 @@ import           Reflex.Dom.Core hiding (tag)
 data Tag
   = HTML | HEAD | TITLE | BODY | STYLE
   | FORM | SPAN | DIV   | LABEL
-  | H1   | H2   | H3    | H4   | H5 | P | UL -- underline
+  | H1   | H2   | H3    | H4   | H5 | P | UL | LI
   deriving stock (Show, Eq)
 
 data Attris = Class    { label :: Text }

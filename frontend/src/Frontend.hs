@@ -59,7 +59,7 @@ frontend = Frontend
       FrontendRoute_Main -> mainPage appState
       FrontendRoute_Login -> loginPage appState
       FrontendRoute_Signup -> signupPage appState
-      FrontendRoute_WebPlug -> webPlugPage
+      FrontendRoute_WebPlug -> webPlugPage appState
     pure ()
   }
 
