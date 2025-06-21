@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -6,17 +7,19 @@ module Routes.WebSocket where
 import           Common.Api
 import           Control.Concurrent         (threadDelay)
 import           Control.Monad              (forever, when)
-import           Control.Monad.IO.Class     (liftIO)
+import           Control.Monad.IO.Class     (MonadIO, liftIO)
+import           Control.Monad.Reader       (ReaderT)
 import           Control.Monad.State.Strict (StateT, evalStateT, get, put)
 import           Data.Aeson                 as A hiding (Key)
 import qualified Data.Map                   as M
 import           Data.Maybe                 (fromMaybe, listToMaybe)
+import           Data.Pool                  (Pool)
 import           Data.Text                  (Text)
-import           Data.Time.Clock            (UTCTime, NominalDiffTime,
+import           Data.Time.Clock            (NominalDiffTime, UTCTime,
                                              diffUTCTime, getCurrentTime)
 import           Database.DB
 import           Database.Persist           hiding (Add, count, get)
-import           Database.Persist.Sql       (fromSqlKey)
+import           Database.Persist.Sql       (SqlBackend, fromSqlKey)
 import           Database.Persist.Sqlite    (ConnectionPool, runSqlPool)
 import           Network.WebSockets
 import           Network.WebSockets.Snap
@@ -70,11 +73,19 @@ respBuilder twts usrs =
       )
     ) <$> twts
 
+runDB :: (MonadIO m, BackendCompatible SqlBackend backend)
+      => Pool backend
+      -> ReaderT backend IO a
+      -> m a
+runDB pool action = liftIO $ runSqlPool action pool
+
 getDelta :: ConnectionPool -> UTCTime -> IO (UTCTime, [Entity Tweets])
 getDelta pool lastTime = do
-  tweets <- runSqlPool (selectList [TweetsUpdated_at >=. lastTime] [Desc TweetsCreated_at]) pool
-  nowish <- runSqlPool (selectFirst [] [Desc TweetsUpdated_at, LimitTo 1]) pool
-  let now = case nowish of 
+  (tweets, latest) <- runDB pool $ do
+    tws  <- selectList [TweetsUpdated_at >=. lastTime] [Desc TweetsCreated_at]
+    ltst <- selectFirst [] [Desc TweetsUpdated_at, LimitTo 1]
+    pure (tws, ltst)
+  let now = case latest of
             Just (Entity _ tweet) -> tweetsUpdated_at tweet
             Nothing               -> lastTime
   pure (now, tweets)
@@ -82,30 +93,33 @@ getDelta pool lastTime = do
 entityToPair :: Entity b -> (Key b, b)
 entityToPair (Entity k v) = (k, v)
 
-poolLoop :: ConnectionPool -> Connection -> StateT UTCTime IO () 
+poolLoop :: ConnectionPool -> Connection -> StateT UTCTime IO ()
 poolLoop pool conn = forever $ do
   liftIO $ threadDelay (500 * 1000)  -- 500 ms
-  changedDb  <- liftIO $ wasRecentlyModified "Twits.db"     0.5
-  changedWAL <- liftIO $ wasRecentlyModified "Twits.db-wal" 0.5
-  when (changedDb || changedWAL) $ do
-    lastTime <- get
-    (new, tweets') <- liftIO $ getDelta pool lastTime
-    users' <- liftIO $ runSqlPool (selectList [] [Desc TwitsName])    pool
-    let response' = respBuilder (map entityToPair tweets') (map entityToPair users')
-    liftIO $ sendTextData conn (A.encode response')
+  lastTime <- get
+  (new, tweets) <- liftIO $ getDelta pool lastTime
+  when (not (null tweets)) $ do
+    users <- runDB pool (selectList [] [Desc TwitsName])
+    let resp = respBuilder (map entityToPair tweets) (map entityToPair users)
+    liftIO $ sendTextData conn (A.encode resp)
     put new
 
-myWebSocketApp :: ConnectionPool -> ServerApp
-myWebSocketApp pool pending = do
-  eTweets <- liftIO $ runSqlPool (selectList [] [Desc TweetsCreated_at]) pool
-  eUsers  <- liftIO $ runSqlPool (selectList [] [Desc TwitsName]) pool
+runWebSocket :: ConnectionPool -> ServerApp
+runWebSocket pool pending = do
+  (eTweets, eUsers) <- runDB pool $ do 
+    twts <- selectList [] [Desc TweetsCreated_at]
+    usrs <- selectList [] [Desc TwitsName]  
+    pure (twts, usrs)
   let tweets   = entityToPair <$> eTweets
       users    = entityToPair <$> eUsers
       response = respBuilder tweets users
   conn <- acceptRequest pending
   sendTextData conn (A.encode response)
   now <- getCurrentTime
-  liftIO $ evalStateT (poolLoop pool conn) now
+  let initialLastTime = case eTweets of
+          (Entity _ t : _) -> tweetsUpdated_at t
+          []               -> now
+  liftIO $ evalStateT (poolLoop pool conn) initialLastTime
 
 websocket :: ConnectionPool -> Snap ()
-websocket pool = runWebSocketsSnap $ myWebSocketApp pool
+websocket pool = runWebSocketsSnap $ runWebSocket pool
