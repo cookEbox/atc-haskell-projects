@@ -108,9 +108,11 @@ textBox NotPassword clearEv (Hideable hideEv)
                    . elementConfig_initialAttributes .~ ("disabled" =: "true")
                  & inputElementConfig_elementConfig 
                    . elementConfig_modifyAttributes .~ hideEv
+                 & initialAttributes .~ ("maxlength" =: "280")
 textBox Password clearEv _ 
   = inputElement $ def
                  & inputElementConfig_elementConfig 
                    . elementConfig_initialAttributes .~ ("type" =: "password")
                  & inputElementConfig_setValue .~ clearEv
+                 & initialAttributes .~ ("maxlength" =: "64")
 

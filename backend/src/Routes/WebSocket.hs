@@ -80,16 +80,23 @@ runDB :: (MonadIO m, BackendCompatible SqlBackend backend)
       -> m a
 runDB pool action = liftIO $ runSqlPool action pool
 
-getDelta :: ConnectionPool -> UTCTime -> IO (UTCTime, [Entity Tweets])
-getDelta pool lastTime = do
-  (tweets, latest) <- runDB pool $ do
-    tws  <- selectList [TweetsUpdated_at >=. lastTime] [Desc TweetsCreated_at]
-    ltst <- selectFirst [] [Desc TweetsUpdated_at, LimitTo 1]
-    pure (tws, ltst)
-  let now = case latest of
-            Just (Entity _ tweet) -> tweetsUpdated_at tweet
-            Nothing               -> lastTime
+getTweetDelta :: ConnectionPool -> UTCTime -> IO (UTCTime, [Entity Tweets])
+getTweetDelta pool lastTime = do
+  (tweets, mLatest) <- runDB pool $ do
+    tws    <- selectList [TweetsUpdated_at >=. lastTime] [Desc TweetsCreated_at]
+    latest <- selectFirst [] [Desc TweetsUpdated_at, LimitTo 1]
+    pure (tws, latest)
+  let now = maybe lastTime (tweetsUpdated_at . entityVal) mLatest
   pure (now, tweets)
+
+getUserDelta :: ConnectionPool -> UTCTime -> IO (UTCTime, [Entity Twits])
+getUserDelta pool lastTime = do
+  (users, mLatest) <- runDB pool $ do
+    usrs   <- selectList [TwitsUpdated_at >=. lastTime] [Desc TwitsName]
+    latest <- selectFirst [] [Desc TwitsUpdated_at, LimitTo 1]
+    pure (usrs, latest)
+  let now = maybe lastTime (twitsUpdated_at . entityVal) mLatest
+  pure (now, users)
 
 entityToPair :: Entity b -> (Key b, b)
 entityToPair (Entity k v) = (k, v)
@@ -98,12 +105,19 @@ poolLoop :: ConnectionPool -> Connection -> StateT UTCTime IO ()
 poolLoop pool conn = forever $ do
   liftIO $ threadDelay (500 * 1000)  -- 500 ms
   lastTime <- get
-  (new, tweets) <- liftIO $ getDelta pool lastTime
-  when (not (null tweets)) $ do
+  (tTime, newTweets) <- liftIO $ getTweetDelta pool lastTime
+  (uTime, newUsers)  <- liftIO $ getUserDelta pool lastTime
+  let newTime = max tTime uTime
+  when (not (null newTweets) || not (null newUsers)) $ do
+    twtsToSend <- if not (null newTweets)
+                  then pure newTweets 
+                  else runDB pool (selectList [] [Desc TweetsCreated_at])
     users <- runDB pool (selectList [] [Desc TwitsName])
-    let resp = respBuilder (map entityToPair tweets) (map entityToPair users)
+    let resp = respBuilder 
+                (map entityToPair twtsToSend) 
+                (map entityToPair users)
     liftIO $ sendTextData conn (A.encode resp)
-    put new
+    put newTime
 
 runWebSocket :: ConnectionPool -> ServerApp
 runWebSocket pool pending = do

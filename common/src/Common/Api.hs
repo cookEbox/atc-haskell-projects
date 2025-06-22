@@ -102,7 +102,7 @@ data MessageRespS = MessageRespS
   , resUserIdS   :: Maybe Integer
   , messageS     :: Msg
   , likesS       :: [Integer]
-  , repliesS     :: Maybe MessageResps
+  , repliesS     :: Maybe MessageRespsS
   , followsS     :: [Integer]
   , createdS     :: UTCTime
   , msgIdS       :: Integer
