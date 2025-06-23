@@ -21,7 +21,6 @@ import           Obelisk.Route.Frontend
 import           Pages.Login
 import           Pages.Main
 import           Pages.Signup
-import           Pages.WebPlug
 import           Reflex.Dom.Core
 
 initial :: ObeliskWidget t (R FrontendRoute) m => m (Dynamic t CookieData)
@@ -59,7 +58,6 @@ frontend = Frontend
       FrontendRoute_Main -> mainPage appState
       FrontendRoute_Login -> loginPage appState
       FrontendRoute_Signup -> signupPage appState
-      FrontendRoute_WebPlug -> webPlugPage appState
     pure ()
   }
 

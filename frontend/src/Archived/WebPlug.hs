@@ -244,9 +244,9 @@ sendTweet appState = mdo
     pure ()
   pure ()
 
-webPlugPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m
+main :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m
             => AppState t -> RoutedT t () m ()
-webPlugPage appState = do
+main appState = do
   loginControlButton LoginAndSignup appState
   el_ H1 $ text "Twitter App"
   el_ P $ text "Enter text and press submit:"

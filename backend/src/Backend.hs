@@ -13,7 +13,6 @@ import           Database.Persist.Sqlite (ConnectionPool, createSqlitePool,
                                           runSqlPool)
 import           Obelisk.Backend
 import           Obelisk.Route           as R
-import           Routes.Gotten
 import           Routes.Login
 import           Routes.Posted
 import           Routes.Signup
@@ -33,7 +32,6 @@ backend = Backend
 backendHandlers :: ConnectionPool -> R BackendRoute -> Snap ()
 backendHandlers pool = \case
   BackendRoute_Post      :/ () -> posted    pool
-  BackendRoute_Get       :/ () -> gotten    pool
   BackendRoute_Login     :/ () -> login     pool
   BackendRoute_Logout    :/ () -> logout
   BackendRoute_Signup    :/ () -> signup    pool

@@ -42,12 +42,12 @@ updateMessageFollows pool key rid = do
 
 -- TODO: Update MessageReply should take auth token and validate before action
 whatUpdate :: ConnectionPool -> MessageReply -> IO ()
-whatUpdate pool (MessageReply Nothing (Just _) Nothing (Just pid) rid) = updateMessageLikes pool pid rid
-whatUpdate pool (MessageReply Nothing Nothing (Just _) (Just pid) rid) = do
+whatUpdate pool (MessageReply Nothing Like (Just pid) rid) = updateMessageLikes pool pid rid
+whatUpdate pool (MessageReply Nothing Follow (Just pid) rid) = do
   case pid == rid of
     True  -> pure ()
     False -> updateMessageFollows pool pid rid
-whatUpdate _ (MessageReply _ _ _ Nothing _ ) = error "No pid should not happen at whatUpdate"
+whatUpdate _ (MessageReply _ _ Nothing _ ) = error "No pid should not happen at whatUpdate"
 whatUpdate _ _ = undefined -- TODO: Update for reply messages
 
 update :: ConnectionPool ->  Snap ()

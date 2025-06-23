@@ -55,15 +55,12 @@ instance FromJSON MessageReq
 
 type UserName = Text
 type Msg = Text
-data Like = Like deriving stock (Show, Eq, Generic)
-instance ToJSON Like
-instance FromJSON Like
+data ReplyType = Like | Follow deriving stock (Show, Eq, Generic)
+instance ToJSON ReplyType
+instance FromJSON ReplyType
 data Reply = Replies (Maybe [MessageReq]) deriving stock (Show, Eq, Generic)
 instance ToJSON Reply
 instance FromJSON Reply
-data Follow = Follow deriving stock (Show, Eq, Generic)
-instance ToJSON Follow
-instance FromJSON Follow
 
 data MessageResp = MessageResp
   { resUserName :: UserName
@@ -85,8 +82,7 @@ instance FromJSON MessageResps
 
 data MessageReply = MessageReply
   { reply     :: Maybe MessageReq
-  , like      :: Maybe Like
-  , follow    :: Maybe Follow
+  , replyType :: ReplyType
   , parentId  :: (Maybe Integer)
   , replierId :: Integer
   } deriving stock (Show, Eq, Generic)
