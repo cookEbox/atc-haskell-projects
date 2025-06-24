@@ -137,4 +137,4 @@ runWebSocket pool pending = do
   liftIO $ evalStateT (poolLoop pool conn) initialLastTime
 
 websocket :: ConnectionPool -> Snap ()
-websocket pool = runWebSocketsSnap $ runWebSocket pool
+websocket = runWebSocketsSnap . runWebSocket 

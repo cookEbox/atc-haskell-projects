@@ -154,9 +154,9 @@ displayMessages :: ( DomBuilder t m
                    , Prerender t m
                    ) => AppState t 
                      -> Dynamic t (M.Map Integer MessageRespS) 
-                     -> m ()
+                     -> m (Dynamic t (Maybe Integer))
 displayMessages appState respMapDyn = mdo
-  elAttr_ DIV (Class "allMessages") $ do 
+  uidMb <- elAttr_ DIV (Class "allMessages") $ do 
     rec 
       let loggedIn       = appLoggedIn appState 
           auuDyn         = fromMaybe (Auth "", User "", UID 0) <$> loggedIn
@@ -168,8 +168,8 @@ displayMessages appState respMapDyn = mdo
           maybeFollowButton userIdDynMb mapDyn
           printMessage mapDyn
           likeButton userIdDynMb mapDyn
-    pure ()
-  pure ()
+    pure (userIdDynMb)
+  pure (uidMb)
 
 selectCookies :: MonadWidget t m
               => Event t ()
@@ -203,32 +203,25 @@ requestEvent :: Reflex t
              -> Event t MessageReq
 requestEvent msgDyn nameAuthEv = 
   attachPromptlyDynWith
-    (\msg (Auth auth, User user, UID _) -> MessageReq user 0 msg auth)
+    (\msg (Auth auth, User user, UID uid) -> MessageReq user uid msg auth)
     msgDyn
     nameAuthEv
 
-postAndGetMsgs :: (Applicative m, Prerender t m)
-               => InputElement er d t
-               -> Event t ()
-               -> m (Dynamic t (Event t Text))
-postAndGetMsgs inputEl loginEv =
-  prerender (pure never) $ mdo
+postMsgs :: (Applicative m, Prerender t m)
+         => AppState t
+         -> InputElement er d t
+         -> Event t ()
+         -> m ()
+postMsgs appState inputEl enterEv =
+  void $ prerender (pure ()) $ mdo
     rec
-      let nameAuthEv = fromMaybe (Auth "", User "", UID 0) <$> nameAuthEvMaybe
-          msgEv      = tagPromptlyDyn (_inputElement_value inputEl) loginEv
-          reqEv      = requestEvent msgDyn nameAuthEv
-          initTextEv = fmap (fromMaybe "" . _xhrResponse_responseText) initEv
-          triggerGet = void postEv
-          getTextEv  = fmap (fromMaybe "" . _xhrResponse_responseText) getEv
-
--- TODO: This can probably be changed to check AppState
-      nameAuthEvMaybe <- selectCookies loginEv
-      msgDyn          <- holdDyn "" msgEv
-      postbuild       <- getPostBuild
-      initEv          <- sendRequest "get" postbuild
-      postEv          <- sendRequest "post" reqEv
-      getEv           <- sendRequest "get" triggerGet
-    pure $ leftmost [initTextEv, getTextEv]
+      let nameAuthEvMb = tagPromptlyDyn (appLoggedIn appState) enterEv
+          nameAuthEv   = fromMaybe (Auth "", User "", UID 0) <$> nameAuthEvMb
+          msgEv        = tagPromptlyDyn (_inputElement_value inputEl) enterEv
+          reqEv        = requestEvent msgDyn nameAuthEv
+      
+      msgDyn <- holdDyn "" msgEv
+    void $ sendRequest "post" reqEv
 
 sendTweet :: (DomBuilder t m , PostBuild t m , MonadFix m, Prerender t m) 
           => AppState t -> m ()
@@ -241,28 +234,47 @@ sendTweet appState = mdo
           clearEv     = "" <$ loginEv
 
       inputEl     <- el_ DIV $ input appState clearEv
-      void $ postAndGetMsgs inputEl loginEv
+      void $ postMsgs appState inputEl loginEv
     pure ()
   pure ()
+
+feedButtons :: DomBuilder t m 
+            => Integer -> m (Event t [ClientMsg])
+feedButtons uid = do
+  mainClickEv    <- button "Main"
+  userClickEv    <- button "My Page"
+  followsClickEv <- button "Friends"
+  let mainEv        = [All]       <$ mainClickEv
+      userEv        = [UserMsgs uid]  <$ userClickEv
+      followsEv     = [Following uid] <$ followsClickEv
+  pure $ leftmost [mainEv, userEv, followsEv]
 
 mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m
          => AppState t -> RoutedT t () m ()
 mainPage appState = do
   loginControlButton LoginAndSignup appState
   el_ H1 $ text "Twitter App"
-  el_ P $ text "Enter text and press submit:"
-  sendTweet appState
   void $ prerender (pure ()) $ mdo
     rec
-      let subscribeText = ["subscribe"] :: [Text]
-          cfg = def { _webSocketConfig_send = subscribeText <$ onOpen }
-          patches = fmap decodeJsonS incomingText
+      dynUserSend :: Dynamic t (Event t [ClientMsg])
+        <- widgetHold
+            (pure $ [All] <$ onOpen)
+            (ffor (updated uidMb) $ \case
+               Nothing  -> pure $ [All] <$ onOpen
+               Just uid -> feedButtons uid
+            )
+      let userSendEv = switchDyn dynUserSend 
+          patches    = fromMaybe (MessageRespsS M.empty) <$> incomingText
+          cfg        = def { _webSocketConfig_send = userSendEv }
+
       RawWebSocket{ _webSocket_recv = incomingText, _webSocket_open = onOpen } 
-        <- webSocket "ws://localhost:8000/websocket" cfg
+        <- jsonWebSocket "ws://localhost:8000/websocket" cfg
       msgMapDyn <- foldDyn
         (\(MessageRespsS newMap) oldMap -> M.union newMap oldMap)
         M.empty
         patches
-      displayMessages appState msgMapDyn
+      el_ P $ text "Enter text and press submit:"
+      sendTweet appState
+      uidMb <- displayMessages appState msgMapDyn
     pure ()
 

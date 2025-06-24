@@ -22,6 +22,7 @@ import           Data.Map.Strict             (Map)
 import           Data.Maybe                  (isJust, fromMaybe)
 import           Data.Text                   (isInfixOf, Text)
 import           General.Functions
+import           General.Elements
 import           Language.Javascript.JSaddle (liftJSM)
 import           Obelisk.Frontend
 import           Obelisk.Route
@@ -55,7 +56,7 @@ loginControlButton :: ObeliskWidget t (R FrontendRoute) m
                    => LoggedOutButtons 
                    -> AppState t 
                    -> RoutedT t () m ()
-loginControlButton loggedOutButtons appState = el "div" $ do
+loginControlButton loggedOutButtons appState = el_ DIV $ do
   void $ prerender (pure ()) $ do
     let showButton = isJust <$> appLoggedIn appState
     dyn_ $ ffor showButton $ \showBtn ->

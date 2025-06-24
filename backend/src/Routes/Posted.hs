@@ -24,7 +24,7 @@ posted :: ConnectionPool -> Snap ()
 posted pool = do
   req <- getRequestBody
   case A.decode req of
-    Just (MessageReq user _ reqMsg authToken) -> do
+    Just (MessageReq user uid reqMsg authToken) -> do
       encoded <- liftIO $ super_secret_DELETE
       authorised <- liftIO $ validateAuthToken authToken
       let authUser = authUserId <$> verifyToken (encodeUtf8 . pack $ encoded) authToken
@@ -33,7 +33,7 @@ posted pool = do
       if authorised && isUser
       then do
         utc <- liftIO getCurrentTime
-        let newTweet = Tweets user [] [] reqMsg utc utc
+        let newTweet = Tweets user (fromIntegral uid) [] [] reqMsg utc utc
         void $ liftIO $ runSqlPool (insert newTweet) pool
       else
         writeLBS $ "{\"error\": \"Invalid Authorisation Token for" <> (LE.encodeUtf8 . LT.fromStrict $ userName) <> "\" }"

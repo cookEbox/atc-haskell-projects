@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE DerivingStrategies  #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
@@ -51,13 +52,13 @@ parseCookie cookieText =
   let cookies = map strip $ splitOn ";" cookieText
       authVal = Auth <$> listToMaybe [val | entry <- cookies, Just val <- [stripPrefix "auth=" entry]]
       userVal = User <$> listToMaybe [val | entry <- cookies, Just val <- [stripPrefix "user=" entry]]
-      idVal   = UID . read . unpack  <$> listToMaybe [val | entry <- cookies, Just val <- [stripPrefix "id=" entry]] 
+      idVal   = UID . read . unpack  <$> listToMaybe [val | entry <- cookies, Just val <- [stripPrefix "id=" entry]]
   in (,,) <$> authVal <*> userVal <*> idVal
 
 data AppState t = AppState
   { appLoggedIn     :: Dynamic t CookieData
   , triggerLoggedIn :: CookieData -> IO ()
-  }
+  } 
 
 flattenDyn :: Reflex t => Dynamic t (Dynamic t a) -> Dynamic t a
 flattenDyn dd =
@@ -79,7 +80,7 @@ tagger :: Reflex t
 tagger usernameDyn hashedPasswordDyn loginEv =
   tag (current $ UserDetailsReq <$> usernameDyn <*> hashedPasswordDyn) loginEv
 
-updateState :: (PerformEvent t1 m, MonadJSM (Performable m)) 
+updateState :: (PerformEvent t1 m, MonadJSM (Performable m))
             => AppState t2 -> Event t1 a -> m ()
 updateState appState success = do
     performEvent_ $ ffor success $ \_ -> liftJSM $ do

@@ -29,6 +29,7 @@ Twits
     deriving Show Eq
 Tweets
     user_name  Text
+    user_id    Int64
     likes      [Int64]
     reply_id   [Int64]
     content    Text

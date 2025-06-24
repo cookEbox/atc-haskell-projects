@@ -111,3 +111,11 @@ data MessageRespsS = MessageRespsS
   } deriving stock (Show, Eq, Generic)
 instance ToJSON MessageRespsS
 instance FromJSON MessageRespsS
+
+data ClientMsg 
+  = All 
+  | UserMsgs Integer
+  | Following Integer
+  deriving stock (Show, Eq, Generic)
+instance ToJSON ClientMsg
+instance FromJSON ClientMsg

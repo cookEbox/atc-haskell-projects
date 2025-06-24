@@ -36,6 +36,7 @@
           pkgs.haskellPackages.ghc
           pkgs.sqlite
           pkgs.openssl
+          pkgs.rlwrap
         ];
       };
     });
