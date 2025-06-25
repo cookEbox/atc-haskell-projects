@@ -106,8 +106,9 @@ data MessageRespS = MessageRespS
 instance ToJSON MessageRespS
 instance FromJSON MessageRespS
 
-data MessageRespsS = ClearMap 
-                   | MessageRespsS 
+type MessageMapMb = Maybe MessageRespsS
+
+data MessageRespsS = MessageRespsS 
   { responseMsgsS :: Map Integer MessageRespS
   } deriving stock (Show, Eq, Generic)
 instance ToJSON MessageRespsS

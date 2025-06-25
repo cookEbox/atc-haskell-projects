@@ -260,10 +260,10 @@ holdWidget onOpen uidMb = widgetHold
                Just uid -> feedButtons uid
             )
 
-patchOrClear :: MessageRespsS
+patchOrClear :: MessageMapMb
              -> M.Map Integer MessageRespS -> M.Map Integer MessageRespS
-patchOrClear ClearMap               _      =      M.empty
-patchOrClear (MessageRespsS newMap) oldMap = M.union newMap oldMap
+patchOrClear Nothing               _      =      M.empty
+patchOrClear (Just (MessageRespsS newMap)) oldMap = M.union newMap oldMap
 
 mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m
          => AppState t -> RoutedT t () m ()
@@ -276,8 +276,8 @@ mainPage appState = do
 
       let userSendEv = switchDyn dynUserSend 
           cfg        = def { _webSocketConfig_send = userSendEv }
-          clearEv    = ClearMap <$ switchDyn dynUserSend 
-          patchEv  = fromMaybe (MessageRespsS M.empty) <$> incomingText
+          clearEv    = Nothing <$ switchDyn dynUserSend 
+          patchEv    = incomingText
 
       RawWebSocket{ _webSocket_recv = incomingText, _webSocket_open = onOpen } 
         <- jsonWebSocket "ws://localhost:8000/websocket" cfg
