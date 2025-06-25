@@ -6,7 +6,8 @@ module Backend where
 
 import           Common.Route
 import           Control.Monad.IO.Class  (liftIO)
-import           Control.Monad.Logger    (runStdoutLoggingT)
+-- import           Control.Monad.Logger    (runStdoutLoggingT)
+import           Control.Monad.Logger    (runNoLoggingT)
 import           Database.DB
 import           Database.Persist.Sql    (runMigration)
 import           Database.Persist.Sqlite (ConnectionPool, createSqlitePool,
@@ -23,7 +24,7 @@ import           Snap
 backend :: Backend BackendRoute FrontendRoute
 backend = Backend
   { _backend_run = \serve -> do
-    pool <- runStdoutLoggingT $ createSqlitePool "Twits.db" 5
+    pool <- runNoLoggingT $ createSqlitePool "Twits.db" 5
     runSqlPool (runMigration migrateAll) pool
     serve (backendHandlers pool)
   , _backend_routeEncoder = fullRouteEncoder

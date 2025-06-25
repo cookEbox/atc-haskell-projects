@@ -109,7 +109,7 @@ followButton :: ( DomBuilder t m
               ) => Dynamic t (Maybe Integer) 
                 -> Dynamic t MessageRespS
                 -> m ()
-followButton userIdDynMb mapDyn = mdo 
+followButton userIdDynMb mapDyn = mdo
   dyn_ $ ffor userIdDynMb $ \case 
     Nothing -> blank
     Just rid -> do 
@@ -249,6 +249,22 @@ feedButtons uid = do
       followsEv     = [Following uid] <$ followsClickEv
   pure $ leftmost [mainEv, userEv, followsEv]
 
+holdWidget :: (DomBuilder t m, MonadHold t m) 
+           => Event t b 
+           -> Dynamic t (Maybe Integer) 
+           -> m (Dynamic t (Event t [ClientMsg]))
+holdWidget onOpen uidMb = widgetHold
+            (pure $ [All] <$ onOpen)
+            (ffor (updated uidMb) $ \case
+               Nothing  -> pure $ [All] <$ onOpen
+               Just uid -> feedButtons uid
+            )
+
+patchOrClear :: MessageRespsS
+             -> M.Map Integer MessageRespS -> M.Map Integer MessageRespS
+patchOrClear ClearMap               _      =      M.empty
+patchOrClear (MessageRespsS newMap) oldMap = M.union newMap oldMap
+
 mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m
          => AppState t -> RoutedT t () m ()
 mainPage appState = do
@@ -256,23 +272,18 @@ mainPage appState = do
   el_ H1 $ text "Twitter App"
   void $ prerender (pure ()) $ mdo
     rec
-      dynUserSend :: Dynamic t (Event t [ClientMsg])
-        <- widgetHold
-            (pure $ [All] <$ onOpen)
-            (ffor (updated uidMb) $ \case
-               Nothing  -> pure $ [All] <$ onOpen
-               Just uid -> feedButtons uid
-            )
+      dynUserSend <- holdWidget onOpen uidMb
+
       let userSendEv = switchDyn dynUserSend 
-          patches    = fromMaybe (MessageRespsS M.empty) <$> incomingText
           cfg        = def { _webSocketConfig_send = userSendEv }
+          clearEv    = ClearMap <$ switchDyn dynUserSend 
+          patchEv  = fromMaybe (MessageRespsS M.empty) <$> incomingText
 
       RawWebSocket{ _webSocket_recv = incomingText, _webSocket_open = onOpen } 
         <- jsonWebSocket "ws://localhost:8000/websocket" cfg
-      msgMapDyn <- foldDyn
-        (\(MessageRespsS newMap) oldMap -> M.union newMap oldMap)
-        M.empty
-        patches
+
+      msgMapDyn <- foldDyn patchOrClear M.empty (leftmost [clearEv, patchEv])
+
       el_ P $ text "Enter text and press submit:"
       sendTweet appState
       uidMb <- displayMessages appState msgMapDyn

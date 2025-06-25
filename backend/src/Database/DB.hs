@@ -23,13 +23,14 @@ share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 Twits
     name       Text
     password   Text
-    follow     [Int64]
+    followers  [Int64]
+    following  [Int64]
     UniqueTwit name
     updated_at UTCTime
     deriving Show Eq
 Tweets
     user_name  Text
-    user_id    Int64
+    user_id    Int64      -- can this be TwitsId
     likes      [Int64]
     reply_id   [Int64]
     content    Text

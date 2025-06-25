@@ -29,16 +29,21 @@ updateMessageLikes pool key rid = do
   runSqlPool (P.update keyid [TweetsLikes =. incLikes tweets, TweetsUpdated_at =. utc]) pool
 
 updateMessageFollows :: ConnectionPool -> Integer -> Integer -> IO ()
-updateMessageFollows pool key rid = do
+updateMessageFollows pool pid rid = do
   eUsers <- liftIO $ runSqlPool (selectList [] [Desc TwitsName]) pool
   utc <- liftIO getCurrentTime
   let users  = (\(Entity id u) -> (id, u)) <$> eUsers
-      keyid  = toSqlKey $ fromInteger key
+      pidKey  = toSqlKey $ fromInteger pid
+      ridKey  = toSqlKey $ fromInteger rid
       rid64  = fromInteger rid
-      user   = head . filter (\id -> fst id == keyid)
-      toggle lst = if elem rid64 lst then L.delete rid64 lst else rid64 : lst
-      addFolls  = L.nub . toggle . twitsFollow . snd . user
-  runSqlPool (P.update keyid [TwitsFollow =. addFolls users, TwitsUpdated_at =. utc]) pool
+      pid64  = fromInteger pid
+      follower   = head . filter (\id -> fst id == pidKey)
+      following  = head . filter (\id -> fst id == ridKey)
+      toggle rok64 lst = if elem rok64 lst then L.delete rok64 lst else rok64 : lst
+      addFollowers rok64 = L.nub . toggle rok64 . twitsFollowers . snd . follower
+      addFollowing rok64 = L.nub . toggle rok64 . twitsFollowing . snd . following
+  runSqlPool (P.update pidKey [TwitsFollowers =. addFollowers rid64 users, TwitsUpdated_at =. utc]) pool
+  runSqlPool (P.update ridKey [TwitsFollowing =. addFollowing pid64 users, TwitsUpdated_at =. utc]) pool
 
 -- TODO: Update MessageReply should take auth token and validate before action
 whatUpdate :: ConnectionPool -> MessageReply -> IO ()
