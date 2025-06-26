@@ -91,11 +91,11 @@ likeButton userIdDynMb mapDyn = mdo
     Nothing -> blank
     Just rid -> do 
       rec
-        (e, _) <- elAttR_ BUTTON (multi [Class "btn-like", Class "fa"]) $ dynText thumbsUpDyn
+        (e, _) <- elR_ BUTTON $ do dyn thumbsUpDyn
         let bldMsgReply msgResp = buildReply (Just . msgIdS) Like msgResp rid 
             iconSwitcher msgResp = if rid `elem` likesS msgResp 
-                                   then "👍" 
-                                   else "▫️"
+                                   then elClass_ I "fa-solid fa-thumbs-up" blank
+                                   else elClass_ I "fa-regular fa-thumbs-up" blank
             thumbsUpDyn  = iconSwitcher <$> mapDyn
             likeClickEv  = domEvent Click e
             msgReply     = bldMsgReply <$> mapDyn
@@ -114,11 +114,11 @@ followButton userIdDynMb mapDyn = mdo
     Nothing -> blank
     Just rid -> do 
       rec
-        (e, _) <- el' "button" $ dynText followingDyn
+        (e, _) <- elR_ BUTTON $ do dyn followingDyn
         let bldMsgReply msgResp = buildReply resUserIdS Follow msgResp rid 
             iconSwitcher msgResp = if rid `elem` followsS msgResp 
-                                   then "📌"
-                                   else "📍"
+                                   then elClass_ I "fa-solid fa-thumbtack" blank
+                                   else elClass_ I "fa-regular fa-circle" blank
             followingDyn  = iconSwitcher <$> mapDyn
             followClickEv = domEvent Click e
             msgReply      = bldMsgReply <$> mapDyn
@@ -215,7 +215,8 @@ input appState clearEv = do
   ie <- textBox NotPassword clearEv (Hideable $ updated attrs)
   dyn_ $ ffor loggedInDyn $ \loggedIn ->
     if loggedIn
-    then void $ button "📨"
+    then elClass_ BUTTON "send-button" $
+            elClass_ I "fas fa-paper-plane" blank
     else blank
   pure ie
 

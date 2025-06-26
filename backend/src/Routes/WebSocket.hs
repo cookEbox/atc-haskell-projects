@@ -8,7 +8,7 @@ import           Common.Api
 import           Control.Concurrent         (forkIO, threadDelay)
 import           Control.Concurrent.MVar    (MVar, modifyMVar_, newMVar,
                                              readMVar)
-import           Control.Monad              (forever, void)
+import           Control.Monad              (forever, void, unless)
 import           Control.Monad.IO.Class     (MonadIO, liftIO)
 import           Control.Monad.Reader       (ReaderT)
 import           Control.Monad.State.Strict (StateT, evalStateT, get, put)
@@ -135,20 +135,25 @@ poolLoop pool conn subVar = forever $ do
   tweetDelta        <- liftIO $ getTweetDelta pool lastTime sub
   (uTime, newUsers) <- liftIO $ getUserDelta pool lastTime
   let (tTime, newTwtLst) = (\td -> (fmap fst td, fmap snd td)) tweetDelta
-      newTime = max (minimum tTime) uTime
       newTweets = concat newTwtLst
+      newTime = case tTime of 
+                  [] -> uTime 
+                  _  -> max (minimum tTime) uTime
   case (newTweets, newUsers) of
     ([], [])   -> pure ()
-    (ts, _ )   -> do
+    (ts, us)   -> do
       twtsToSend  <- if not (null ts)
                      then pure ts
-                     else runDB pool (selectList [] [Desc TweetsCreated_at])
-      allUsers    <- runDB pool (selectList [] [Desc TwitsName])
-      let resp = respBuilder
-                   (map entityToPair twtsToSend)
-                   (map entityToPair allUsers)
-      liftIO $ sendTextData conn (A.encode resp)
-      put newTime
+                     else if not (null us) 
+                          then grabAll pool sub
+                          else pure []
+      unless (null twtsToSend) $ do 
+        allUsers    <- runDB pool (selectList [] [Desc TwitsName])
+        let resp = respBuilder
+                     (map entityToPair twtsToSend)
+                     (map entityToPair allUsers)
+        liftIO $ sendTextData conn (A.encode resp)
+        put newTime
 
 initialAllDb :: MonadIO m
              => ConnectionPool
@@ -177,11 +182,21 @@ initialFollowersDb pool uid = runDB pool $ do
   let twitsKey = toSqlKey (fromIntegral uid)
   fsm <- runDB pool $ fmap twitsFollowing <$> P.get twitsKey
   let fs = fromMaybe [] fsm
-      fetch f = fetchTweetsDelta pool (posixSecondsToUTCTime 0) [TweetsUser_id ==. f]
+      fetch f = fetchTweetsDelta 
+                  pool 
+                  (posixSecondsToUTCTime 0) 
+                  [TweetsUser_id ==. f]
   tweets <- liftIO . sequence $ fetch <$> fs
   let twts = concat $ (\t -> fmap snd t) tweets
   usrs <- selectList [] [Desc TwitsName]
   pure (twts, usrs)
+
+grabAll :: MonadIO m => ConnectionPool -> ClientMsg -> m [Entity Tweets]
+grabAll pool (Following uid) = do (twts, _) <- initialFollowersDb pool uid
+                                  pure twts
+grabAll pool _               = do (twts, _) <- initialAllDb pool
+                                  pure twts
+
 
 mostRecentUpdateTime :: UTCTime -> [Entity Tweets] -> [Entity Twits] -> UTCTime
 mostRecentUpdateTime n []                []                = n
