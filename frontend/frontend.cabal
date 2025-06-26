@@ -23,6 +23,8 @@ library
                , blaze-markup
                , data-default
                , containers
+               , semigroupoids
+               , data-default-class
   exposed-modules:
     Frontend
   other-modules: 

@@ -117,4 +117,3 @@ textBox Password clearEv _
                  & inputElementConfig_elementConfig 
                    . elementConfig_initialAttributes .~ ("type" =: "password" <> "maxlength" =: "64")
                  & inputElementConfig_setValue .~ clearEv
-

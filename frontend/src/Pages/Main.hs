@@ -91,7 +91,7 @@ likeButton userIdDynMb mapDyn = mdo
     Nothing -> blank
     Just rid -> do 
       rec
-        (e, _) <- el' "button" $ dynText thumbsUpDyn
+        (e, _) <- elAttR_ BUTTON (multi [Class "btn-like", Class "fa"]) $ dynText thumbsUpDyn
         let bldMsgReply msgResp = buildReply (Just . msgIdS) Like msgResp rid 
             iconSwitcher msgResp = if rid `elem` likesS msgResp 
                                    then "👍" 
@@ -114,12 +114,12 @@ followButton userIdDynMb mapDyn = mdo
     Nothing -> blank
     Just rid -> do 
       rec
-        (e, _) <- el' "button" $ dynText thumbsUpDyn
+        (e, _) <- el' "button" $ dynText followingDyn
         let bldMsgReply msgResp = buildReply resUserIdS Follow msgResp rid 
             iconSwitcher msgResp = if rid `elem` followsS msgResp 
                                    then "📌"
                                    else "📍"
-            thumbsUpDyn   = iconSwitcher <$> mapDyn
+            followingDyn  = iconSwitcher <$> mapDyn
             followClickEv = domEvent Click e
             msgReply      = bldMsgReply <$> mapDyn
             followMsgEv   = tagPromptlyDyn msgReply followClickEv
@@ -136,16 +136,26 @@ maybeFollowButton userIdDynMb mapDyn = do
       (Just False) -> blank 
       (Just True) -> followButton userIdDynMb mapDyn
 
+printUserName :: (DomBuilder t f, PostBuild t f) 
+              => Dynamic t MessageRespS -> f ()
+printUserName mapDyn = do 
+  void $ dyn $ ffor mapDyn $ \msgResp -> do
+    let user = resUserNameS msgResp
+    el_ SPAN $ text user
+
+printLikes :: (DomBuilder t f, PostBuild t f) 
+           => Dynamic t MessageRespS -> f ()
+printLikes mapDyn = do 
+  void $ dyn $ ffor mapDyn $ \msgResp -> do
+    let printlikes = pack . show . length . likesS
+    text $ printlikes msgResp 
+
 printMessage :: (DomBuilder t f, PostBuild t f) 
              => Dynamic t MessageRespS -> f ()
 printMessage mapDyn = do 
   void $ dyn $ ffor mapDyn $ \msgResp -> do
-    let user = resUserNameS msgResp
-        msg  = messageS msgResp
-        printlikes = pack . show . length . likesS
-    el_ SPAN $ text user
-    text (": " <> msg)
-    text (printlikes msgResp) 
+    let msg  = messageS msgResp
+    text msg
 
 displayMessages :: ( DomBuilder t m
                    , PostBuild t m
@@ -156,20 +166,32 @@ displayMessages :: ( DomBuilder t m
                      -> Dynamic t (M.Map Integer MessageRespS) 
                      -> m (Dynamic t (Maybe Integer))
 displayMessages appState respMapDyn = mdo
-  uidMb <- elAttr_ DIV (Class "allMessages") $ do 
+  uidMb <- elClass_ DIV "allMessages" $ do 
     rec 
       let loggedIn       = appLoggedIn appState 
           auuDyn         = fromMaybe (Auth "", User "", UID 0) <$> loggedIn
           userNameDyn    = username . (\(_,u,_) -> u) <$> auuDyn
           userIdDynMb    = fmap (userid . (\(_,_,i) -> i)) <$> loggedIn
           userYouListDyn = replaceUserName "You" userNameDyn respMapDyn
-      void $ reverseList userYouListDyn $ \mapDyn -> do
-        elAttr_ DIV (Class "message") $ do
-          maybeFollowButton userIdDynMb mapDyn
-          printMessage mapDyn
-          likeButton userIdDynMb mapDyn
-    pure (userIdDynMb)
-  pure (uidMb)
+      void $ reverseList userYouListDyn $ \msgDyn -> do
+        let classDyn = zipDynWith
+              (\mbUid msg ->
+                 case (mbUid, resUserIdS msg) of
+                   (Just uid, Just author) | uid == author 
+                     -> "message message--self"
+                   _ -> "message message--other"
+              ) userIdDynMb msgDyn
+        elDynClass "div" classDyn $ do
+          elClass_ DIV "message-header" $ do
+            printUserName msgDyn
+            maybeFollowButton userIdDynMb msgDyn
+          elClass_ DIV "message-body" $ do
+            printMessage msgDyn
+          elClass_ DIV "message-footer" $ do 
+            printLikes msgDyn
+            likeButton userIdDynMb msgDyn
+    pure userIdDynMb
+  pure uidMb
 
 selectCookies :: MonadWidget t m
               => Event t ()
@@ -226,13 +248,14 @@ postMsgs appState inputEl enterEv =
 sendTweet :: (DomBuilder t m , PostBuild t m , MonadFix m, Prerender t m) 
           => AppState t -> m ()
 sendTweet appState = mdo
-  (formEl, _) <- elAttR_ FORM (OnSubmit "return false;") $ el_ DIV $ do
+  (formEl, _) <- elAttR_ FORM (single $ OnSubmit "return false;") $ el_ DIV $ do
     rec
       let enterEv     = domEvent Submit formEl
           nonEmptyDyn = not . null <$> _inputElement_value inputEl
           loginEv     = gate (current nonEmptyDyn) enterEv
           clearEv     = "" <$ loginEv
 
+      -- TODO: Needs to be an textArea
       inputEl     <- el_ DIV $ input appState clearEv
       void $ postMsgs appState inputEl loginEv
     pure ()
@@ -268,12 +291,12 @@ patchOrClear (Just (MessageRespsS newMap)) oldMap = M.union newMap oldMap
 mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m
          => AppState t -> RoutedT t () m ()
 mainPage appState = do
-  loginControlButton LoginAndSignup appState
-  el_ H1 $ text "Twitter App"
-  void $ prerender (pure ()) $ mdo
+  elClass_ DIV "top-banner" $
+    elClass_ DIV "banner-inner" $ do
+      elClass_ DIV "banner-title" $ text "Twitter App"
+      elClass_ DIV "banner-button" $ loginControlButton LoginAndSignup appState
+  elClass_ DIV "main-content" $ void $ prerender (pure ()) $ mdo
     rec
-      dynUserSend <- holdWidget onOpen uidMb
-
       let userSendEv = switchDyn dynUserSend 
           cfg        = def { _webSocketConfig_send = userSendEv }
           clearEv    = Nothing <$ switchDyn dynUserSend 
@@ -284,8 +307,8 @@ mainPage appState = do
 
       msgMapDyn <- foldDyn patchOrClear M.empty (leftmost [clearEv, patchEv])
 
-      el_ P $ text "Enter text and press submit:"
-      sendTweet appState
+      dynUserSend <- elClass_ DIV "feed-buttons" $ holdWidget onOpen uidMb
+      elClass_ DIV "tweet-box" $ sendTweet appState
       uidMb <- displayMessages appState msgMapDyn
     pure ()
 

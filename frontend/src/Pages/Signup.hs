@@ -9,7 +9,6 @@ module Pages.Signup where
 
 import           Common.Api
 import           Common.Route
-import           Control.Monad          (void)
 import           Data.Aeson             (ToJSON)
 import           Data.Maybe             (fromMaybe)
 import           Data.Text              as T
@@ -65,37 +64,39 @@ signUp signupDataEv = do
 
 signupPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m
            => AppState t -> RoutedT t () m ()
-signupPage appState = mdo
-  loginControlButton LoginAndMain appState
-  el_ H1 $ text "Signup page"
-  (formEl, _) <- elAttR_ FORM (OnSubmit "return false;") $ do
-    rec
-      usernameEl <- el_ DIV $ do
-        el_ LABEL $ text "Username: "
-        textBox NotPassword clearEv Persistent
+signupPage appState = do
+  elClass_ DIV "login-page" $ do 
+    elClass_ DIV "login-form" $ mdo 
+      loginControlButton LoginAndMain appState
+      el_ H1 $ text "Sign Up"
+      (formEl, _) <- elAttR_ FORM (single $ OnSubmit "return false;") $ do
+        rec
+          usernameEl <- elClass_ DIV "field-group" $ do
+            el_ LABEL $ text "Username: "
+            textBox NotPassword clearEv Persistent
 
-      passwordEl <- el_ DIV $ do
-        el_ LABEL $ text "Password: "
-        textBox Password clearEv Persistent
+          passwordEl <- elClass_ DIV "field-group" $ do
+            el_ LABEL $ text "Password: "
+            textBox Password clearEv Persistent
 
-      sndPasswordEl <- el_ DIV $ do
-        el_ LABEL $ text "Re-Enter Password: "
-        textBox Password clearEv Persistent
+          sndPasswordEl <- elClass_ DIV "field-group" $ do
+            el_ LABEL $ text "Re-Enter Password: "
+            textBox Password clearEv Persistent
 
-      void $ button "Sign Up"
+          elAttr_ BUTTON (multi [Type "submit", Class "btn"]) $ text "Signup"
 
-      let submitEv       = domEvent Submit formEl
-          usernameDyn    = _inputElement_value usernameEl
-          passwordDyn    = _inputElement_value passwordEl
-          sndPasswordDyn = _inputElement_value sndPasswordEl
+          let submitEv       = domEvent Submit formEl
+              usernameDyn    = _inputElement_value usernameEl
+              passwordDyn    = _inputElement_value passwordEl
+              sndPasswordDyn = _inputElement_value sndPasswordEl
 
-      signupEv <- inputValidator submitEv usernameDyn passwordDyn sndPasswordDyn
+          signupEv <- inputValidator submitEv usernameDyn passwordDyn sndPasswordDyn
 
-      let clearEv           = "" <$ signupEv
-          hashedPasswordDyn = decodeUtf8 . hashForSending <$> passwordDyn
-          signupDataEv      = tagger usernameDyn hashedPasswordDyn signupEv
+          let clearEv           = "" <$ signupEv
+              hashedPasswordDyn = decodeUtf8 . hashForSending <$> passwordDyn
+              signupDataEv      = tagger usernameDyn hashedPasswordDyn signupEv
 
-      failureDyn <- signUp signupDataEv
-    el_ DIV $ dynText failureDyn
-  pure ()
+          failureDyn <- signUp signupDataEv
+        elClass_ DIV "error-message" $ dynText failureDyn
+      pure ()
 

@@ -1,3 +1,256 @@
-p {
-  color: red;  
+/* Gruvbox-Light palette (muted/pastel variants) */
+:root {
+  /* unified lighter yellow for all backgrounds except other messages */
+  --gruv-back:   #FFFCF5;  /* very back background */
+  --gruv-light0: #FFFCF5;  /* main container background */
+  --gruv-light1: #ECECEC;  /* message-other background: light gray */
+  --self-blue:   #E0F0FF;  /* your messages: pastel blue */
+  --gruv-light3: #BDAE93;  /* borders */
+  --gruv-accent: #8EC07C;  /* accent (e.g. buttons) */
+  --gruv-dark0:  #3C3836;  /* primary text */
+  --gruv-dark1:  #504945;  /* secondary text / headers */
+}
+
+/* Apply the very back background */
+body {
+  background: var(--gruv-back);
+}
+
+/* === Banner === */
+.top-banner {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  background: var(--gruv-light0);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  z-index: 100;
+}
+.banner-inner {
+  max-width: 25cm;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+}
+.banner-title {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--gruv-dark1);
+}
+.banner-button {
+  /* wrapper around login/logout button */
+  color: var(--gruv-accent);
+}
+
+/* === Main Content Container === */
+.main-content {
+  max-width: 25cm;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0 1rem;
+  box-sizing: border-box;
+  background: var(--gruv-light0);
+}
+
+/* Top Row: feed buttons */
+.feed-buttons {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: 1cm;
+  justify-content: flex-start;
+  align-items: center;
+}
+.feed-buttons button {
+  background: var(--gruv-accent);
+  color: var(--gruv-back);
+  border: 1px solid var(--gruv-light3);
+  border-radius: 4px;
+}
+
+/* Second Row: tweet input + send button */
+.tweet-box {
+  width: 100%;
+  padding: 0;
+  margin: 0;
+}
+.tweet-box form {
+  width: 100%;
+  padding: 0;
+  margin: 0;
+}
+.tweet-box form > div {
+  display: flex;
+  width: 100%;
+  gap: 0;
+  align-items: center;
+  padding: 0;
+  margin: 0;
+}
+.tweet-box form > div > div {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0;
+  margin: 0;
+}
+.tweet-box form input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 3rem;
+  padding: 0.5rem 0;
+  margin-left: 1cm;
+  font-size: 1rem;
+  box-sizing: border-box;
+  border: 1px solid var(--gruv-light3);
+  border-radius: 4px;
+  background: var(--gruv-light0);
+  color: var(--gruv-dark0);
+}
+.tweet-box form button {
+  flex: 0 0 auto;
+  width: 2cm;
+  min-height: 3rem;
+  padding: 0;
+  font-size: 1rem;
+  margin-left: auto;
+  background: var(--gruv-accent);
+  color: var(--gruv-back);
+  border: 1px solid var(--gruv-light3);
+  border-radius: 4px;
+}
+
+/* === Messages === */
+.feed-container {
+  max-width: 25cm;
+  margin: 0 auto;
+  padding: 0 1rem;
+  box-sizing: border-box;
+}
+.allMessages {
+  width: 100%;
+  border: 2px solid var(--gruv-light3);
+  border-radius: 8px;
+  background: var(--gruv-light0);
+  padding: 1rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.message {
+  /* shared styles… */
+  max-width: 75%;
+  overflow-wrap: break-word;
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  box-sizing: border-box;
+  color: var(--gruv-dark0);
+}
+
+/* your own messages, align right, pastel blue */
+.message--self {
+  background: var(--self-blue);
+  border: 1px solid var(--gruv-light3);
+  margin-left: auto;
+  margin-right: 1rem;
+}
+
+/* others’ messages, align left, light gray */
+.message--other {
+  background: var(--gruv-light1);
+  border: 1px solid var(--gruv-light3);
+  margin-left: 1rem;
+  margin-right: auto;
+}
+
+.message-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--gruv-light3);
+  color: var(--gruv-dark1);
+}
+.message-body {
+  padding: 0.5rem 0;
+}
+.message-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--gruv-light3);
+  color: var(--gruv-dark1);
+}
+
+/* links, buttons inside messages */
+.message-footer button,
+.message-header button {
+  background: transparent;
+  color: var(--gruv-accent);
+  border: none;
+}
+
+/* === Login & Signup Pages === */
+.login-page,
+.signup-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--gruv-back);
+}
+.login-form {
+  background: var(--gruv-light0);
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  max-width: 400px;
+  width: 100%;
+}
+.field-group {
+  margin-bottom: 1rem;
+}
+.field-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--gruv-dark1);
+}
+.field-group input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--gruv-light3);
+  border-radius: 4px;
+  background: #FFF;
+  color: var(--gruv-dark0);
+  box-sizing: border-box;
+}
+.btn {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--gruv-accent);
+  color: var(--gruv-light0);
+  border: none;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.error-message {
+  margin-top: 0.5rem;
+  color: #D65A5A;
+}
+/* Font Awesome text-icon helper */
+.fa {
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+  speak: none;
+  line-height: 1;
+  font-style: normal;
+  text-rendering: auto;
 }

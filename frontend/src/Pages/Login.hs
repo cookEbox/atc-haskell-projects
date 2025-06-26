@@ -41,33 +41,35 @@ logIn loginDataEv appState = do
 
 loginPage :: ObeliskWidget t (R FrontendRoute) m
           => AppState t -> RoutedT t () m ()
-loginPage appState = mdo
-  loginControlButton SignupAndMain appState
-  el_ H1 $ text "LOGIN PAGE"
-  (formEl, _) <- elAttR_ FORM (OnSubmit "return false;") $ do
-    rec
-      usernameEl <- el_ DIV $ do
-        el_ LABEL $ text "Username: "
-        textBox NotPassword clearEv Persistent
+loginPage appState = do
+  elClass_ DIV "login-page" $ do
+    elClass_ DIV "login-form" $ mdo 
+      loginControlButton SignupAndMain appState
+      el_ H1 $ text "LOGIN PAGE"
+      (formEl, _) <- elAttR_ FORM (single $ OnSubmit "return false;") $ do
+        rec
+          usernameEl <- elClass_ DIV "field-group" $ do
+            el_ LABEL $ text "Username: "
+            textBox NotPassword clearEv Persistent
 
-      passwordEl <- el_ DIV $ do
-        el_ LABEL $ text "Password: "
-        textBox Password clearEv Persistent
+          passwordEl <- elClass_ DIV "field-group" $ do
+            el_ LABEL $ text "Password: "
+            textBox Password clearEv Persistent
 
-      void $ button "Login"
+          elAttr_ BUTTON (multi [Type "submit", Class "btn"]) $ text "Login"
 
-      let submitEv          = domEvent Submit formEl
-          usernameDyn       = _inputElement_value usernameEl
-          passwordDyn       = _inputElement_value passwordEl
-          clearEv           = "" <$ loginEv
-          hashedPasswordDyn = decodeUtf8 . hashForSending <$> passwordDyn
-          bothFilledDyn     = (&&)
-                              <$> fmap (not . T.null) usernameDyn
-                              <*> fmap (not . T.null) passwordDyn
-          loginEv           = gate (current bothFilledDyn) submitEv
-          loginDataEv       = tagger usernameDyn hashedPasswordDyn loginEv
+          let submitEv          = domEvent Submit formEl
+              usernameDyn       = _inputElement_value usernameEl
+              passwordDyn       = _inputElement_value passwordEl
+              clearEv           = "" <$ loginEv
+              hashedPasswordDyn = decodeUtf8 . hashForSending <$> passwordDyn
+              bothFilledDyn     = (&&)
+                                  <$> fmap (not . T.null) usernameDyn
+                                  <*> fmap (not . T.null) passwordDyn
+              loginEv           = gate (current bothFilledDyn) submitEv
+              loginDataEv       = tagger usernameDyn hashedPasswordDyn loginEv
 
-      failureDyn <- logIn loginDataEv appState
-    el_ DIV $ dynText failureDyn
-  pure ()
+          failureDyn <- logIn loginDataEv appState
+        el_ DIV $ dynText failureDyn
+      pure ()
 
