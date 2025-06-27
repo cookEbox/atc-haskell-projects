@@ -44,7 +44,7 @@ setCookie expired name val = do
 
 cookiesSet :: Text -> Text -> Text -> Snap ()
 cookiesSet signed username id_ = do
-  setCookie' $ encodeUtf8 <$> ("auth"   , signed     )
+  setCookie' $ encodeUtf8 <$> ("session", signed     )
   setCookie' $ encodeUtf8 <$> ("user"   , username   )
   setCookie' $ encodeUtf8 <$> ("id"     , id_        )
   setCookie' $ encodeUtf8 <$> ("status" , "loggedIn" )

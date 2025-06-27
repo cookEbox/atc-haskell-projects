@@ -8,6 +8,8 @@ import           Common.Api
 import           Control.Monad.IO.Class  (liftIO)
 import           Data.Aeson              as A hiding (Key)
 import qualified Data.List               as L (delete, nub)
+import           Data.Text               (Text)
+import qualified Data.Text               as T
 import           Data.Time.Clock         (getCurrentTime)
 import           Database.DB
 import           Database.Persist        as P hiding (Add, count)
@@ -63,23 +65,38 @@ updateMessageFollows pool pid rid = do
              ) pool
 
 -- TODO: Update MessageReply should take auth token and validate before action
-whatUpdate :: ConnectionPool -> MessageReply -> IO ()
-whatUpdate pool (MessageReply Nothing Like (Just pid) rid) 
-  = updateMessageLikes pool pid rid
-whatUpdate pool (MessageReply Nothing Follow (Just pid) rid) = do
-  case pid == rid of
-    True  -> pure ()
-    False -> updateMessageFollows pool pid rid
-whatUpdate _ (MessageReply _ _ Nothing _ ) 
+whatUpdate :: ConnectionPool -> MessageReply -> IO Text
+whatUpdate pool (MessageReply Nothing Like (Just pid) rid (Just authToken)) 
+  = do authorised <- liftIO $ validateAuthToken authToken
+       case authorised of 
+         True -> do updateMessageLikes pool pid rid
+                    pure ""
+         False -> pure "Unauthorised"
+whatUpdate pool (MessageReply Nothing Follow (Just pid) rid (Just authToken)) 
+  = do authorised <- liftIO $ validateAuthToken authToken 
+       case authorised of
+         True  -> if pid /= rid 
+                  then do updateMessageFollows pool pid rid 
+                          pure ""
+                  else pure ""
+         False -> pure ""
+whatUpdate _ (MessageReply _ _ Nothing _ _) 
   = error "No pid should not happen at whatUpdate"
+whatUpdate _ (MessageReply _ _ _ _ Nothing) 
+  = pure "Authorise Token required"
 whatUpdate _ _ = undefined -- TODO: Update for reply messages
 
 update :: ConnectionPool ->  Snap ()
 update pool = do
   req <- getRequestBody
   case A.decode req of
-    Just msgReply -> liftIO $ whatUpdate pool msgReply
+    Just msgReply -> do 
+      err <- liftIO $ whatUpdate pool msgReply
+      if not (T.null err) 
+      then writeLBS (encode $ object ["error" .= err])
+      else pure ()
     Nothing -> do
       modifyResponse $ setResponseStatus 400 "Bad Request"
       modifyResponse $ setHeader "Content-Type" "application/json"
-      writeLBS "{\"error\": \"Invalid JSON\"}"
+      writeLBS (encode $ object ["error" .= ("Invalid JSON" :: T.Text)])
+

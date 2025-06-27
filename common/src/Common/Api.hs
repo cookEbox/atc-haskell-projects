@@ -81,10 +81,11 @@ instance ToJSON MessageResps
 instance FromJSON MessageResps
 
 data MessageReply = MessageReply
-  { reply     :: Maybe MessageReq
-  , replyType :: ReplyType
-  , parentId  :: (Maybe Integer)
-  , replierId :: Integer
+  { reply         :: Maybe MessageReq
+  , replyType     :: ReplyType
+  , parentId      :: (Maybe Integer)
+  , replierId     :: Integer
+  , repAuthUserId :: Maybe Text
   } deriving stock (Show, Eq, Generic)
 instance ToJSON MessageReply
 instance FromJSON MessageReply

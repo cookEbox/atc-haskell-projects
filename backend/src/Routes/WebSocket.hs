@@ -9,7 +9,7 @@ import           Common.Api
 import           Control.Concurrent         (forkIO, threadDelay)
 import           Control.Concurrent.MVar    (MVar, modifyMVar_, newMVar,
                                              readMVar)
-import           Control.Monad              (forever, void, unless)
+import           Control.Monad              (forever, void)
 import           Control.Monad.IO.Class     (MonadIO, liftIO)
 import           Control.Monad.Reader       (ReaderT)
 import           Control.Monad.State.Strict (StateT, evalStateT, get, put)
@@ -128,39 +128,58 @@ getUserDelta pool lastTime = do
 entityToPair :: Entity b -> (Key b, b)
 entityToPair (Entity k v) = (k, v)
 
+returnOrGrabAll :: (Foldable t, MonadIO f) =>
+                   ConnectionPool
+                   -> [Entity Tweets]
+                   -> t a
+                   -> ClientMsg
+                   -> f ([Entity Tweets], PatchOrReplace)
+returnOrGrabAll pool ts us sub 
+  | not (null ts) = pure (ts, Patch)
+  | not (null us) = (,Replace) <$> grabAll pool sub
+  | otherwise     = pure ([], Patch) 
+
+sendToClient :: ConnectionPool
+             -> Connection
+             -> UTCTime
+             -> [Entity Tweets]
+             -> PatchOrReplace
+             -> StateT UTCTime IO ()
+sendToClient pool conn newTime twtsToSend por 
+  | por == Patch && null twtsToSend = pure ()
+  | otherwise = do
+      allUsers <- runDB pool (selectList [] [Desc TwitsName])
+      let resp = respBuilder
+                   (map entityToPair twtsToSend)
+                   (map entityToPair allUsers)
+                   por
+      liftIO $ sendTextData conn (A.encode resp)
+      put newTime
+
+flipListTuple :: [(a, [b])] -> ([a], [b])
+flipListTuple lst = (fmap fst lst, concat $ fmap snd lst)
+
+lastUpdate :: Ord a => [a] -> a -> a
+lastUpdate []    uTime = uTime 
+lastUpdate tTime uTime = max (minimum tTime) uTime
+
 poolLoop :: ConnectionPool 
          -> Connection 
          -> MVar ClientMsg 
          -> StateT UTCTime IO ()
 poolLoop pool conn subVar = forever $ do
-  liftIO $ threadDelay (50 * 1000)  -- 50 ms
+  liftIO $ threadDelay (100 * 1000)  -- 100 ms
   lastTime <- get
   sub <- liftIO $ readMVar subVar
   tweetDelta        <- liftIO $ getTweetDelta pool lastTime sub
   (uTime, newUsers) <- liftIO $ getUserDelta pool lastTime
-  let (tTime, newTwtLst) = (\td -> (fmap fst td, fmap snd td)) tweetDelta
-      newTweets = concat newTwtLst
-      newTime = case tTime of 
-                  [] -> uTime 
-                  _  -> max (minimum tTime) uTime
+  let (tTime, newTweets) = flipListTuple tweetDelta
+      newTime = lastUpdate tTime uTime 
   case (newTweets, newUsers) of
     ([], [])   -> pure ()
     (ts, us)   -> do
-      (twtsToSend, por) <- if not (null ts)
-                           then pure (ts, Patch)
-                           else if not (null us) 
-                                then (,Replace) <$> grabAll pool sub
-                                else pure ([], Patch) -- not sure if this should be Replace
-      if por == Patch && null twtsToSend
-        then pure ()
-        else do
-          allUsers <- runDB pool (selectList [] [Desc TwitsName])
-          let resp = respBuilder
-                       (map entityToPair twtsToSend)
-                       (map entityToPair allUsers)
-                       por
-          liftIO $ sendTextData conn (A.encode resp)
-          put newTime
+      (twtsToSend, por) <- returnOrGrabAll pool ts us sub
+      sendToClient pool conn newTime twtsToSend por
 
 initialAllDb :: MonadIO m
              => ConnectionPool

@@ -22,7 +22,6 @@ import           Data.Text                   (Text, pack, null, unpack)
 import           General.Buttons
 import           General.Elements
 import           General.Functions
-import           Language.Javascript.JSaddle (liftJSM)
 import           Obelisk.Frontend
 import           Obelisk.Route
 import           Obelisk.Route.Frontend
@@ -37,7 +36,7 @@ decodeJsonS bs =
 decodeJson :: Text -> [MessageResp]
 decodeJson t =
   case eitherDecodeStrict' (B8.pack $ unpack t) of
-    Left  _err              -> [] -- TODO: handle this error better
+    Left  _err              -> [] 
     Right (MessageResps xs) -> xs
 
 reverseList :: forall t m k v a. 
@@ -71,70 +70,84 @@ replaceUserName newName userNameDyn respMapDyn
     where 
       replace userName respList = replaceText newName userName respList
 
-buildReply :: (MessageRespS -> Maybe Integer) 
-           -> ReplyType
-           -> MessageRespS 
-           -> Integer 
-           -> MessageReply
-buildReply func replyT msgResp rid = 
-  MessageReply Nothing replyT (func msgResp) rid 
+buildReply :: Reflex t 
+            => (MessageRespS -> Maybe Integer) 
+            -> Dynamic t MessageRespS 
+            -> Event t (Maybe (Auth, User, UID))
+            -> ReplyType
+            -> Integer 
+            -> Event t MessageReply 
+buildReply func msgDyn nameAuthEv replyT rid = 
+  attachPromptlyDynWith 
+    (\msg auu -> MessageReply Nothing replyT (func msg) rid (auth auu))
+    msgDyn 
+    nameAuthEv
+  where 
+    auth = fmap (\(Auth a, _, _    ) -> a) 
 
 likeButton :: ( DomBuilder t m
               , MonadFix m
               , PostBuild t m
               , Prerender t m 
-              ) => Dynamic t (Maybe Integer) 
+              ) => AppState t
+                -> Dynamic t (Maybe Integer) 
                 -> Dynamic t MessageRespS
                 -> m ()
-likeButton userIdDynMb mapDyn = mdo 
+likeButton appState userIdDynMb mapDyn = mdo 
   dyn_ $ ffor userIdDynMb $ \case 
     Nothing -> blank
     Just rid -> do 
       rec
         (e, _) <- elR_ BUTTON $ do dyn thumbsUpDyn
-        let bldMsgReply msgResp = buildReply (Just . msgIdS) Like msgResp rid 
-            iconSwitcher msgResp = if rid `elem` likesS msgResp 
-                                   then elClass_ I "fa-solid fa-thumbs-up" blank
-                                   else elClass_ I "fa-regular fa-thumbs-up" blank
+        let iconSwitcher msgResp 
+              = if rid `elem` likesS msgResp 
+                then elClass_ I "fa-solid fa-thumbs-up" blank
+                else elClass_ I "fa-regular fa-thumbs-up" blank
             thumbsUpDyn  = iconSwitcher <$> mapDyn
             likeClickEv  = domEvent Click e
-            msgReply     = bldMsgReply <$> mapDyn
-            likedMsgEv   = tagPromptlyDyn msgReply likeClickEv
+            nameAuthEvMb = tagPromptlyDyn (appLoggedIn appState) likeClickEv
+            likedMsgEv   = buildReply (Just . msgIdS) mapDyn nameAuthEvMb Like rid
       void $ prerender (pure ()) $ void $ sendRequest "supdate" likedMsgEv
 
 followButton :: ( DomBuilder t m
               , MonadFix m
               , PostBuild t m
               , Prerender t m 
-              ) => Dynamic t (Maybe Integer) 
+              ) => AppState t 
+                -> Dynamic t (Maybe Integer) 
                 -> Dynamic t MessageRespS
                 -> m ()
-followButton userIdDynMb mapDyn = mdo
+followButton appState userIdDynMb mapDyn = mdo
   dyn_ $ ffor userIdDynMb $ \case 
     Nothing -> blank
     Just rid -> do 
       rec
         (e, _) <- elR_ BUTTON $ do dyn followingDyn
-        let bldMsgReply msgResp = buildReply resUserIdS Follow msgResp rid 
-            iconSwitcher msgResp = if rid `elem` followsS msgResp 
-                                   then elClass_ I "fa-solid fa-thumbtack" blank
-                                   else elClass_ I "fa-regular fa-circle" blank
+        let iconSwitcher msgResp 
+              = if rid `elem` followsS msgResp 
+                then elClass_ I "fa-solid fa-thumbtack" blank
+                else elClass_ I "fa-regular fa-circle" blank
             followingDyn  = iconSwitcher <$> mapDyn
             followClickEv = domEvent Click e
-            msgReply      = bldMsgReply <$> mapDyn
-            followMsgEv   = tagPromptlyDyn msgReply followClickEv
+            nameAuthEvMb  = tagPromptlyDyn (appLoggedIn appState) followClickEv
+            followMsgEv   = buildReply resUserIdS mapDyn nameAuthEvMb Follow rid
       void $ prerender (pure ()) $ void $ sendRequest "supdate" followMsgEv
 
-maybeFollowButton :: (DomBuilder t m, PostBuild t m, MonadFix m, Prerender t m) 
-                  => Dynamic t (Maybe Integer) -> Dynamic t MessageRespS -> m ()
-maybeFollowButton userIdDynMb mapDyn = do
+maybeFollowButton :: ( DomBuilder t m
+                     , PostBuild t m
+                     , MonadFix m
+                     , Prerender t m 
+                     ) => AppState t 
+                       -> Dynamic t (Maybe Integer) 
+                       -> Dynamic t MessageRespS -> m ()
+maybeFollowButton appState userIdDynMb mapDyn = do
   let zippedDyn = zipDyn userIdDynMb mapDyn
   dyn_ $ ffor zippedDyn $ \(mIn, msgResp) -> do 
     let msgSenderId = resUserIdS msgResp 
     case (/=) <$> msgSenderId <*> mIn of 
       Nothing -> blank
       (Just False) -> blank 
-      (Just True) -> followButton userIdDynMb mapDyn
+      (Just True) -> followButton appState userIdDynMb mapDyn
 
 printUserName :: (DomBuilder t f, PostBuild t f) 
               => Dynamic t MessageRespS -> f ()
@@ -157,6 +170,18 @@ printMessage mapDyn = do
     let msg  = messageS msgResp
     text msg
 
+classDynSw :: Reflex t 
+           => Dynamic t (Maybe Integer) 
+           -> Dynamic t MessageRespS 
+           -> Dynamic t Text
+classDynSw userIdDynMb msgDyn = zipDynWith swtch userIdDynMb msgDyn
+  where 
+    swtch mbUid msg =
+       case (mbUid, resUserIdS msg) of
+         (Just uid, Just author) | uid == author 
+           -> "message message--self"
+         _ -> "message message--other"
+
 displayMessages :: ( DomBuilder t m
                    , PostBuild t m
                    , MonadHold t m
@@ -174,33 +199,18 @@ displayMessages appState respMapDyn = mdo
           userIdDynMb    = fmap (userid . (\(_,_,i) -> i)) <$> loggedIn
           userYouListDyn = replaceUserName "You" userNameDyn respMapDyn
       void $ reverseList userYouListDyn $ \msgDyn -> do
-        let classDyn = zipDynWith
-              (\mbUid msg ->
-                 case (mbUid, resUserIdS msg) of
-                   (Just uid, Just author) | uid == author 
-                     -> "message message--self"
-                   _ -> "message message--other"
-              ) userIdDynMb msgDyn
+        let classDyn = classDynSw userIdDynMb msgDyn
         elDynClass "div" classDyn $ do
           elClass_ DIV "message-header" $ do
             printUserName msgDyn
-            maybeFollowButton userIdDynMb msgDyn
+            maybeFollowButton appState userIdDynMb msgDyn
           elClass_ DIV "message-body" $ do
             printMessage msgDyn
           elClass_ DIV "message-footer" $ do 
             printLikes msgDyn
-            likeButton userIdDynMb msgDyn
+            likeButton appState userIdDynMb msgDyn
     pure userIdDynMb
   pure uidMb
-
-selectCookies :: MonadWidget t m
-              => Event t ()
-              -> m (Event t CookieData)
-selectCookies clickEv = do
-  authEvent <- performEvent $ ffor clickEv $ \_ -> do
-    cookieText <- liftJSM getCookies
-    pure (parseCookie cookieText)
-  pure authEvent
 
 input :: (DomBuilder t m, PostBuild t m)
       => AppState t
@@ -242,7 +252,6 @@ postMsgs appState inputEl enterEv =
           nameAuthEv   = fromMaybe (Auth "", User "", UID 0) <$> nameAuthEvMb
           msgEv        = tagPromptlyDyn (_inputElement_value inputEl) enterEv
           reqEv        = requestEvent msgDyn nameAuthEv
-      
       msgDyn <- holdDyn "" msgEv
     void $ sendRequest "post" reqEv
 
