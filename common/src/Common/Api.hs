@@ -108,8 +108,13 @@ instance FromJSON MessageRespS
 
 type MessageMapMb = Maybe MessageRespsS
 
+data PatchOrReplace = Patch | Replace deriving stock (Show, Eq, Generic)
+instance ToJSON PatchOrReplace
+instance FromJSON PatchOrReplace
+
 data MessageRespsS = MessageRespsS 
-  { responseMsgsS :: Map Integer MessageRespS
+  { patchOrReplace :: PatchOrReplace
+  , responseMsgsS :: Map Integer MessageRespS
   } deriving stock (Show, Eq, Generic)
 instance ToJSON MessageRespsS
 instance FromJSON MessageRespsS

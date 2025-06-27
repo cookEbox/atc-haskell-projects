@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections       #-}
 
 module Routes.WebSocket where
 
@@ -61,9 +62,12 @@ followedBy usr  = fmap toInteger
                 . fmap twitsFollowers
                 . idOrbdy snd usr
 
-respBuilder :: [(Key Tweets, Tweets)] -> [(Key Twits, Twits)] -> MessageRespsS
-respBuilder twts usrs =
-  MessageRespsS $ M.fromList $
+respBuilder :: [(Key Tweets, Tweets)] 
+            -> [(Key Twits, Twits)] 
+            -> PatchOrReplace 
+            -> MessageRespsS
+respBuilder twts usrs por =
+  MessageRespsS por $ M.fromList $
     (\(id, t) ->
       ((toInteger $ fromSqlKey id),
          MessageRespS
@@ -129,7 +133,7 @@ poolLoop :: ConnectionPool
          -> MVar ClientMsg 
          -> StateT UTCTime IO ()
 poolLoop pool conn subVar = forever $ do
-  liftIO $ threadDelay (100 * 1000)  -- 100 ms
+  liftIO $ threadDelay (50 * 1000)  -- 50 ms
   lastTime <- get
   sub <- liftIO $ readMVar subVar
   tweetDelta        <- liftIO $ getTweetDelta pool lastTime sub
@@ -142,18 +146,21 @@ poolLoop pool conn subVar = forever $ do
   case (newTweets, newUsers) of
     ([], [])   -> pure ()
     (ts, us)   -> do
-      twtsToSend  <- if not (null ts)
-                     then pure ts
-                     else if not (null us) 
-                          then grabAll pool sub
-                          else pure []
-      unless (null twtsToSend) $ do 
-        allUsers    <- runDB pool (selectList [] [Desc TwitsName])
-        let resp = respBuilder
-                     (map entityToPair twtsToSend)
-                     (map entityToPair allUsers)
-        liftIO $ sendTextData conn (A.encode resp)
-        put newTime
+      (twtsToSend, por) <- if not (null ts)
+                           then pure (ts, Patch)
+                           else if not (null us) 
+                                then (,Replace) <$> grabAll pool sub
+                                else pure ([], Patch) -- not sure if this should be Replace
+      if por == Patch && null twtsToSend
+        then pure ()
+        else do
+          allUsers <- runDB pool (selectList [] [Desc TwitsName])
+          let resp = respBuilder
+                       (map entityToPair twtsToSend)
+                       (map entityToPair allUsers)
+                       por
+          liftIO $ sendTextData conn (A.encode resp)
+          put newTime
 
 initialAllDb :: MonadIO m
              => ConnectionPool
@@ -211,7 +218,7 @@ initial pool = do
   (eTweets, eUsers) <- initialAllDb pool
   let tweets      = entityToPair <$> eTweets
       users       = entityToPair <$> eUsers
-      response    = respBuilder tweets users
+      response    = respBuilder tweets users Replace
       initialTime = mostRecentUpdateTime now eTweets eUsers
   pure (response, initialTime)
 
@@ -223,13 +230,13 @@ sendAll pool conn (UserMsgs uid) = do
   (uTweets, uUser) <- initialUserDb pool uid
   let tweets      = entityToPair <$> uTweets
       users       = entityToPair <$> uUser
-      response    = respBuilder tweets users
+      response    = respBuilder tweets users Replace
   sendTextData conn (A.encode response)
 sendAll pool conn (Following uid) = do 
   (fTweets, fUsers) <- initialFollowersDb pool uid
   let tweets      = entityToPair <$> fTweets
       users       = entityToPair <$> fUsers
-      response    = respBuilder tweets users
+      response    = respBuilder tweets users Replace
   sendTextData conn (A.encode response)
 
 runWebSocket :: ConnectionPool -> ServerApp

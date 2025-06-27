@@ -31,7 +31,7 @@ import           Reflex.Dom.Core             hiding (el, elAttr, elAttr')
 
 decodeJsonS :: ByteString -> MessageRespsS
 decodeJsonS bs =
-  either (const $ MessageRespsS M.empty) id
+  either (const $ MessageRespsS Replace M.empty) id
          (eitherDecodeStrict' bs)
 
 decodeJson :: Text -> [MessageResp]
@@ -286,8 +286,9 @@ holdWidget onOpen uidMb = widgetHold
 
 patchOrClear :: MessageMapMb
              -> M.Map Integer MessageRespS -> M.Map Integer MessageRespS
-patchOrClear Nothing               _      =      M.empty
-patchOrClear (Just (MessageRespsS newMap)) oldMap = M.union newMap oldMap
+patchOrClear Nothing                               _      = M.empty
+patchOrClear (Just (MessageRespsS Replace newMap)) _      = newMap
+patchOrClear (Just (MessageRespsS Patch newMap))   oldMap = M.union newMap oldMap
 
 mainPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m
          => AppState t -> RoutedT t () m ()
