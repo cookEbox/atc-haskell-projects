@@ -28,6 +28,7 @@ data BackendRoute :: * -> * where
   BackendRoute_Signup    :: BackendRoute ()
   BackendRoute_Update    :: BackendRoute ()
   BackendRoute_WebSocket :: BackendRoute ()
+  BackendRoute_Auth      :: BackendRoute ()
 
 data FrontendRoute :: * -> * where
   FrontendRoute_Main    :: FrontendRoute ()
@@ -46,6 +47,7 @@ fullRouteEncoder = mkFullRouteEncoder
     BackendRoute_Signup    -> PathSegment "ssignup"   $ unitEncoder mempty
     BackendRoute_Update    -> PathSegment "supdate"   $ unitEncoder mempty
     BackendRoute_WebSocket -> PathSegment "websocket" $ unitEncoder mempty
+    BackendRoute_Auth      -> PathSegment "auth"      $ unitEncoder mempty
   )
   (\case
     FrontendRoute_Login   -> PathSegment "login"  $ unitEncoder mempty

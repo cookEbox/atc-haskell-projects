@@ -19,6 +19,7 @@ import           Routes.Posted
 import           Routes.Signup
 import           Routes.Update
 import           Routes.WebSocket
+import           Routes.Validate
 import           Snap
 
 backend :: Backend BackendRoute FrontendRoute
@@ -38,6 +39,7 @@ backendHandlers pool = \case
   BackendRoute_Signup    :/ () -> signup    pool
   BackendRoute_Update    :/ () -> update    pool
   BackendRoute_WebSocket :/ () -> websocket pool
+  BackendRoute_Auth      :/ () -> auth 
   BackendRoute_Missing   :/ () -> do
     liftIO $ putStrLn "404: Route not found"
     modifyResponse $ setResponseStatus 404 "Not Found"

@@ -23,8 +23,16 @@ import           Data.Time                (UTCTime)
 import           GHC.Generics             (Generic)
 import Data.Map (Map)
 
+data UserInfo = UserInfo
+  { uiName :: UserName
+  , uiId   :: Integer
+  } deriving stock (Show, Generic)
+instance ToJSON UserInfo
+instance FromJSON UserInfo
+
 data AuthToken = AuthToken
-  { authUserId :: UserName
+  { authUserNm :: UserName
+  , authUserId :: Integer
   , authIssued :: UTCTime
   } deriving stock (Generic, Show)
 
@@ -48,7 +56,6 @@ data MessageReq = MessageReq
   { reqUserName   :: UserName
   , userId        :: Integer
   , userInput     :: Msg
-  , reqAuthUserId :: Text
   } deriving stock (Show, Eq, Generic)
 instance ToJSON MessageReq
 instance FromJSON MessageReq
@@ -85,7 +92,6 @@ data MessageReply = MessageReply
   , replyType     :: ReplyType
   , parentId      :: (Maybe Integer)
   , replierId     :: Integer
-  , repAuthUserId :: Maybe Text
   } deriving stock (Show, Eq, Generic)
 instance ToJSON MessageReply
 instance FromJSON MessageReply

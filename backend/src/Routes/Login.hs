@@ -7,7 +7,7 @@ import           Control.Monad.IO.Class  (liftIO)
 import           Crypto.KDF.BCrypt       (validatePassword)
 import           Data.Aeson              as A
 import qualified Data.ByteString         as BS
-import           Data.Text               (Text, pack)
+import           Data.Text               (Text)
 import           Data.Text.Encoding      (encodeUtf8)
 import           Data.Time.Clock         (addUTCTime, getCurrentTime)
 import           Database.DB
@@ -37,17 +37,10 @@ setCookie expired name val = do
         , cookieExpires  = expires
         , cookieDomain   = Nothing
         , cookiePath     = Just "/"
-        , cookieSecure   = False
-        , cookieHttpOnly = False
+        , cookieSecure   = True
+        , cookieHttpOnly = True
         }
   modifyResponse $ addResponseCookie cookie
-
-cookiesSet :: Text -> Text -> Text -> Snap ()
-cookiesSet signed username id_ = do
-  setCookie' $ encodeUtf8 <$> ("session", signed     )
-  setCookie' $ encodeUtf8 <$> ("user"   , username   )
-  setCookie' $ encodeUtf8 <$> ("id"     , id_        )
-  setCookie' $ encodeUtf8 <$> ("status" , "loggedIn" )
 
 ifMaybeUser :: Text
             -> Text
@@ -58,10 +51,11 @@ ifMaybeUser username password (Just (Entity id twit)) =
   then do
     now <- liftIO getCurrentTime
     key <- liftIO getKey
-    let token = AuthToken username now
+    let id_    = toInteger $ fromSqlKey id
+        token  = AuthToken username id_ now
         signed = makeSignedToken key token
-        id_ = pack . show $ fromSqlKey id
-    cookiesSet signed username id_
+        
+    setCookie' $ encodeUtf8 <$> ("session", signed)
     modifyResponse $ setHeader "Content-Type" "application/json"
     writeLBS (A.encode $ UserDetailsResp "Success")
   else do
@@ -84,9 +78,7 @@ login pool = do
 
 logout :: Snap ()
 logout = do
-  unSetCookie' $ encodeUtf8 "auth"
-  unSetCookie' $ encodeUtf8 "user"
-  unSetCookie' $ encodeUtf8 "status"
+  unSetCookie' $ encodeUtf8 "session"
   writeLBS "{\"status\": \"Logged Out\"}"
 
 

@@ -8,8 +8,6 @@ import           Common.Api
 import           Control.Monad.IO.Class  (liftIO)
 import           Data.Aeson              as A hiding (Key)
 import qualified Data.List               as L (delete, nub)
-import           Data.Text               (Text)
-import qualified Data.Text               as T
 import           Data.Time.Clock         (getCurrentTime)
 import           Database.DB
 import           Database.Persist        as P hiding (Add, count)
@@ -18,6 +16,7 @@ import           Database.Persist.Sqlite (ConnectionPool, runSqlPool)
 import           GHC.Int                 (Int64)
 import           Prelude                 hiding (id)
 import           Shared.Functions
+import Routes.Validate
 import           Snap
 
 updateMessageLikes :: ConnectionPool -> Integer -> Integer -> IO ()
@@ -64,39 +63,35 @@ updateMessageFollows pool pid rid = do
                                ]
              ) pool
 
--- TODO: Update MessageReply should take auth token and validate before action
-whatUpdate :: ConnectionPool -> MessageReply -> IO Text
-whatUpdate pool (MessageReply Nothing Like (Just pid) rid (Just authToken)) 
-  = do authorised <- liftIO $ validateAuthToken authToken
-       case authorised of 
-         True -> do updateMessageLikes pool pid rid
-                    pure ""
-         False -> pure "Unauthorised"
-whatUpdate pool (MessageReply Nothing Follow (Just pid) rid (Just authToken)) 
-  = do authorised <- liftIO $ validateAuthToken authToken 
-       case authorised of
-         True  -> if pid /= rid 
-                  then do updateMessageFollows pool pid rid 
-                          pure ""
-                  else pure ""
-         False -> pure ""
-whatUpdate _ (MessageReply _ _ Nothing _ _) 
+whatUpdate :: ConnectionPool -> MessageReply -> UserInfo -> IO ()
+whatUpdate pool (MessageReply Nothing Like (Just pid) rid) userInfo
+  = if rid == uiId userInfo
+    then updateMessageLikes pool pid rid
+    else pure ()
+whatUpdate pool (MessageReply Nothing Follow (Just pid) rid) userInfo 
+  = do
+      if rid == uiId userInfo
+      then case pid == rid of
+            True  -> pure ()
+            False -> updateMessageFollows pool pid rid
+      else pure ()
+whatUpdate _ (MessageReply _ _ Nothing _ ) _
   = error "No pid should not happen at whatUpdate"
-whatUpdate _ (MessageReply _ _ _ _ Nothing) 
-  = pure "Authorise Token required"
-whatUpdate _ _ = undefined -- TODO: Update for reply messages
+whatUpdate _ _ _= undefined -- TODO: Update for reply messages
 
 update :: ConnectionPool ->  Snap ()
 update pool = do
   req <- getRequestBody
-  case A.decode req of
-    Just msgReply -> do 
-      err <- liftIO $ whatUpdate pool msgReply
-      if not (T.null err) 
-      then writeLBS (encode $ object ["error" .= err])
-      else pure ()
+  authorised <- validate
+  case authorised of 
+    Just userInfo ->
+      case A.decode req of
+        Just msgReply -> liftIO $ whatUpdate pool msgReply userInfo
+        Nothing -> do
+          modifyResponse $ setResponseStatus 400 "Bad Request"
+          modifyResponse $ setHeader "Content-Type" "application/json"
+          writeLBS "{\"error\": \"Invalid JSON\"}"
     Nothing -> do
-      modifyResponse $ setResponseStatus 400 "Bad Request"
-      modifyResponse $ setHeader "Content-Type" "application/json"
-      writeLBS (encode $ object ["error" .= ("Invalid JSON" :: T.Text)])
-
+          modifyResponse $ setResponseStatus 400 "Bad Request"
+          modifyResponse $ setHeader "Content-Type" "application/json"
+          writeLBS "{\"error\": \"Not logged in\"}"

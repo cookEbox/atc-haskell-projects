@@ -18,7 +18,7 @@ import           Data.Time.Clock         (getCurrentTime)
 import           Database.DB
 import           Database.Persist        hiding (Add, count)
 import           Database.Persist.Sqlite (runSqlite)
-import           Maybes                  (isJust, rightToMaybe)
+import           Maybes                  (rightToMaybe)
 import           Prelude                 hiding (id)
 import           Snap
 import qualified System.IO.Streams       as Streams (toList)
@@ -49,9 +49,9 @@ signToken key token =
 makeSignedToken :: BS.ByteString -> AuthToken -> Text
 makeSignedToken key token = decodeUtf8 . B64.encode $ signToken key token
 
-verifyToken :: BS.ByteString -> Text -> Maybe AuthToken
+verifyToken :: BS.ByteString -> BS.ByteString -> Maybe AuthToken
 verifyToken key encoded = do
-  raw <- rightToMaybe $ B64.decode (encodeUtf8 encoded)
+  raw <- rightToMaybe $ B64.decode encoded
   let (payload, sig) = BS.splitAt (BS.length raw - 32) raw
       expected = convert $ hmacGetDigest (hmac key payload :: HMAC SHA256)
   if sig == expected
@@ -69,7 +69,7 @@ getKey :: IO BS.ByteString
 getKey = fmap encodeUtf8 $ pack <$> super_secret_DELETE
 -- getKey = fmap encodeUtf8 $ pack <$> getEnv "AUTH_SECRET"
 
-validateAuthToken :: Text -> IO Bool
-validateAuthToken token = do
-  key <- getKey
-  pure $ isJust (verifyToken key token)
+-- validateAuthToken :: Text -> IO Bool
+-- validateAuthToken token = do
+--   key <- getKey
+--   pure $ isJust (verifyToken key token)

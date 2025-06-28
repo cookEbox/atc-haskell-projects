@@ -22,6 +22,7 @@ import           Data.Text                   (Text, pack, null, unpack)
 import           General.Buttons
 import           General.Elements
 import           General.Functions
+import           Language.Javascript.JSaddle (liftJSM)
 import           Obelisk.Frontend
 import           Obelisk.Route
 import           Obelisk.Route.Frontend
@@ -70,84 +71,72 @@ replaceUserName newName userNameDyn respMapDyn
     where 
       replace userName respList = replaceText newName userName respList
 
-buildReply :: Reflex t 
-            => (MessageRespS -> Maybe Integer) 
-            -> Dynamic t MessageRespS 
-            -> Event t (Maybe (Auth, User, UID))
-            -> ReplyType
-            -> Integer 
-            -> Event t MessageReply 
-buildReply func msgDyn nameAuthEv replyT rid = 
-  attachPromptlyDynWith 
-    (\msg auu -> MessageReply Nothing replyT (func msg) rid (auth auu))
-    msgDyn 
-    nameAuthEv
-  where 
-    auth = fmap (\(Auth a, _, _    ) -> a) 
+buildReply :: (MessageRespS -> Maybe Integer) 
+           -> ReplyType
+           -> MessageRespS 
+           -> Integer 
+           -> MessageReply
+buildReply func replyT msgResp rid = 
+  MessageReply Nothing replyT (func msgResp) rid 
 
 likeButton :: ( DomBuilder t m
               , MonadFix m
               , PostBuild t m
               , Prerender t m 
-              ) => AppState t
-                -> Dynamic t (Maybe Integer) 
+              ) => Dynamic t (Maybe Integer) 
                 -> Dynamic t MessageRespS
                 -> m ()
-likeButton appState userIdDynMb mapDyn = mdo 
+likeButton userIdDynMb mapDyn = mdo 
   dyn_ $ ffor userIdDynMb $ \case 
     Nothing -> blank
     Just rid -> do 
       rec
         (e, _) <- elR_ BUTTON $ do dyn thumbsUpDyn
-        let iconSwitcher msgResp 
+        let bldMsgReply msgResp = buildReply (Just . msgIdS) Like msgResp rid
+            iconSwitcher msgResp 
               = if rid `elem` likesS msgResp 
                 then elClass_ I "fa-solid fa-thumbs-up" blank
                 else elClass_ I "fa-regular fa-thumbs-up" blank
             thumbsUpDyn  = iconSwitcher <$> mapDyn
             likeClickEv  = domEvent Click e
-            nameAuthEvMb = tagPromptlyDyn (appLoggedIn appState) likeClickEv
-            likedMsgEv   = buildReply (Just . msgIdS) mapDyn nameAuthEvMb Like rid
+            msgReply     = bldMsgReply <$> mapDyn
+            likedMsgEv   = tagPromptlyDyn msgReply likeClickEv
       void $ prerender (pure ()) $ void $ sendRequest "supdate" likedMsgEv
 
 followButton :: ( DomBuilder t m
               , MonadFix m
               , PostBuild t m
               , Prerender t m 
-              ) => AppState t 
-                -> Dynamic t (Maybe Integer) 
+              ) => Dynamic t (Maybe Integer) 
                 -> Dynamic t MessageRespS
                 -> m ()
-followButton appState userIdDynMb mapDyn = mdo
+followButton userIdDynMb mapDyn = mdo
   dyn_ $ ffor userIdDynMb $ \case 
     Nothing -> blank
     Just rid -> do 
       rec
         (e, _) <- elR_ BUTTON $ do dyn followingDyn
-        let iconSwitcher msgResp 
+        let bldMsgReply msgResp = buildReply resUserIdS Follow msgResp rid 
+            iconSwitcher msgResp 
               = if rid `elem` followsS msgResp 
                 then elClass_ I "fa-solid fa-thumbtack" blank
                 else elClass_ I "fa-regular fa-circle" blank
             followingDyn  = iconSwitcher <$> mapDyn
             followClickEv = domEvent Click e
-            nameAuthEvMb  = tagPromptlyDyn (appLoggedIn appState) followClickEv
-            followMsgEv   = buildReply resUserIdS mapDyn nameAuthEvMb Follow rid
+            msgReply      = bldMsgReply <$> mapDyn
+            followMsgEv   = tagPromptlyDyn msgReply followClickEv
       void $ prerender (pure ()) $ void $ sendRequest "supdate" followMsgEv
 
-maybeFollowButton :: ( DomBuilder t m
-                     , PostBuild t m
-                     , MonadFix m
-                     , Prerender t m 
-                     ) => AppState t 
-                       -> Dynamic t (Maybe Integer) 
-                       -> Dynamic t MessageRespS -> m ()
-maybeFollowButton appState userIdDynMb mapDyn = do
+maybeFollowButton :: (DomBuilder t m, PostBuild t m, MonadFix m, Prerender t m) 
+                  => Dynamic t (Maybe Integer) -> Dynamic t MessageRespS -> m ()
+maybeFollowButton userIdDynMb mapDyn = do
   let zippedDyn = zipDyn userIdDynMb mapDyn
   dyn_ $ ffor zippedDyn $ \(mIn, msgResp) -> do 
     let msgSenderId = resUserIdS msgResp 
     case (/=) <$> msgSenderId <*> mIn of 
       Nothing -> blank
       (Just False) -> blank 
-      (Just True) -> followButton appState userIdDynMb mapDyn
+      (Just True) -> followButton userIdDynMb mapDyn
 
 printUserName :: (DomBuilder t f, PostBuild t f) 
               => Dynamic t MessageRespS -> f ()
@@ -193,24 +182,33 @@ displayMessages :: ( DomBuilder t m
 displayMessages appState respMapDyn = mdo
   uidMb <- elClass_ DIV "allMessages" $ do 
     rec 
-      let loggedIn       = appLoggedIn appState 
-          auuDyn         = fromMaybe (Auth "", User "", UID 0) <$> loggedIn
-          userNameDyn    = username . (\(_,u,_) -> u) <$> auuDyn
-          userIdDynMb    = fmap (userid . (\(_,_,i) -> i)) <$> loggedIn
+      let loggedInDyn    = appLoggedIn appState 
+          userIdDynMb    = fmap uiId <$> loggedInDyn
+          uiDyn          = fromMaybe (UserInfo "" 0) <$> loggedInDyn
+          userNameDyn    = uiName <$> uiDyn
           userYouListDyn = replaceUserName "You" userNameDyn respMapDyn
       void $ reverseList userYouListDyn $ \msgDyn -> do
         let classDyn = classDynSw userIdDynMb msgDyn
         elDynClass "div" classDyn $ do
           elClass_ DIV "message-header" $ do
             printUserName msgDyn
-            maybeFollowButton appState userIdDynMb msgDyn
+            maybeFollowButton userIdDynMb msgDyn
           elClass_ DIV "message-body" $ do
             printMessage msgDyn
           elClass_ DIV "message-footer" $ do 
             printLikes msgDyn
-            likeButton appState userIdDynMb msgDyn
+            likeButton userIdDynMb msgDyn
     pure userIdDynMb
   pure uidMb
+
+selectCookies :: MonadWidget t m
+              => Event t ()
+              -> m (Event t CookieData)
+selectCookies clickEv = do
+  authEvent <- performEvent $ ffor clickEv $ \_ -> do
+    cookieText <- liftJSM getCookies
+    pure (parseCookie cookieText)
+  pure authEvent
 
 input :: (DomBuilder t m, PostBuild t m)
       => AppState t
@@ -230,30 +228,15 @@ input appState clearEv = do
     else blank
   pure ie
 
-requestEvent :: Reflex t 
-             => Dynamic t Msg 
-             -> Event t (Auth, User, UID) 
-             -> Event t MessageReq
-requestEvent msgDyn nameAuthEv = 
-  attachPromptlyDynWith
-    (\msg (Auth auth, User user, UID uid) -> MessageReq user uid msg auth)
-    msgDyn
-    nameAuthEv
-
 postMsgs :: (Applicative m, Prerender t m)
-         => AppState t
-         -> InputElement er d t
+         => InputElement er d t
          -> Event t ()
          -> m ()
-postMsgs appState inputEl enterEv =
+postMsgs inputEl enterEv =
   void $ prerender (pure ()) $ mdo
     rec
-      let nameAuthEvMb = tagPromptlyDyn (appLoggedIn appState) enterEv
-          nameAuthEv   = fromMaybe (Auth "", User "", UID 0) <$> nameAuthEvMb
-          msgEv        = tagPromptlyDyn (_inputElement_value inputEl) enterEv
-          reqEv        = requestEvent msgDyn nameAuthEv
-      msgDyn <- holdDyn "" msgEv
-    void $ sendRequest "post" reqEv
+       let msgEv = tagPromptlyDyn (_inputElement_value inputEl) enterEv
+    void $ sendRequest "post" msgEv
 
 sendTweet :: (DomBuilder t m , PostBuild t m , MonadFix m, Prerender t m) 
           => AppState t -> m ()
@@ -267,7 +250,7 @@ sendTweet appState = mdo
 
       -- TODO: Needs to be an textArea
       inputEl     <- el_ DIV $ input appState clearEv
-      void $ postMsgs appState inputEl loginEv
+      void $ postMsgs inputEl loginEv
     pure ()
   pure ()
 
@@ -277,7 +260,7 @@ feedButtons uid = do
   mainClickEv    <- button "Main"
   userClickEv    <- button "My Page"
   followsClickEv <- button "Friends"
-  let mainEv        = [All]       <$ mainClickEv
+  let mainEv        = [All]           <$ mainClickEv
       userEv        = [UserMsgs uid]  <$ userClickEv
       followsEv     = [Following uid] <$ followsClickEv
   pure $ leftmost [mainEv, userEv, followsEv]

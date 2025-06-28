@@ -48,9 +48,7 @@ logOut appState = do
         isSuccess     = isInfixOf "Success"
         failureRespEv = ffilter (not . isSuccess) getResponseEv
     performEvent_ $ ffor failureRespEv $ \_ -> liftJSM $ do
-      cookieText <- getCookies
-      let parsed = statusCookieMaybe cookieText >>= parseCookie
-      liftIO $ triggerLoggedIn appState parsed
+      liftIO $ refreshUserReq appState ()
 
 loginControlButton :: ObeliskWidget t (R FrontendRoute) m  
                    => LoggedOutButtons 

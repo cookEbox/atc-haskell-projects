@@ -12,7 +12,8 @@
 module Frontend where
 
 import           Common.Route
-import           Control.Monad               ((>=>))
+import           Data.Aeson               (decodeStrict)
+import           Data.Text.Encoding       (encodeUtf8)
 import           General.Functions
 import           Obelisk.Frontend
 import           Obelisk.Generated.Static
@@ -23,28 +24,19 @@ import           Pages.Main
 import           Pages.Signup
 import           Reflex.Dom.Core
 
-initial :: ObeliskWidget t (R FrontendRoute) m => m (Dynamic t CookieData)
-initial = do
+buildAppState :: ObeliskWidget t (R FrontendRoute) m => m (AppState t)
+buildAppState = mdo
+  (refreshEv, triggerRefresh) <- newTriggerEvent
   nestedDyn <- prerender
-    (pure $ constDyn Nothing)
-    (do
-      cookieDyn       <- cookieWatcher
-      let parsedDyn    = fmap (statusCookieMaybe >=> parseCookie) cookieDyn
-      firstParsedE    <- headE $ fmapMaybe id (updated parsedDyn)
-      oneAndDoneDyn   <- holdDyn Nothing (Just <$> firstParsedE)
-      pure oneAndDoneDyn
-    )
-  pure $ flattenDyn nestedDyn
+    (pure $ constDyn Nothing) $ do
+      onLoad <- getPostBuild
+      let reloadEv = leftmost [onLoad, refreshEv]
+      respEv <- sendRequest "auth" reloadEv
+      holdDyn Nothing $ fmap decodeUserInfo (_xhrResponse_responseText <$> respEv)
+  pure $ AppState (flattenDyn nestedDyn) triggerRefresh
+  where
+    decodeUserInfo = (>>= decodeStrict . encodeUtf8)
 
-buildAppState :: forall t m. ObeliskWidget t (R FrontendRoute) m => m (AppState t)
-buildAppState = do
-  initialLoggedIn <- initial
-  (loginEvent, triggerLogin) <- newTriggerEvent
-  loginStateDyn <- holdDyn Nothing $ leftmost
-    [ updated initialLoggedIn
-    , loginEvent
-    ]
-  pure $ AppState loginStateDyn triggerLogin
 
 frontend :: Frontend (R FrontendRoute)
 frontend = Frontend

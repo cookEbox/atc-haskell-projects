@@ -56,8 +56,8 @@ parseCookie cookieText =
   in (,,) <$> authVal <*> userVal <*> idVal
 
 data AppState t = AppState
-  { appLoggedIn     :: Dynamic t CookieData
-  , triggerLoggedIn :: CookieData -> IO ()
+  { appLoggedIn     :: Dynamic t (Maybe UserInfo)
+  , refreshUserReq  :: () -> IO ()
   } 
 
 flattenDyn :: Reflex t => Dynamic t (Dynamic t a) -> Dynamic t a
@@ -84,7 +84,5 @@ updateState :: (PerformEvent t1 m, MonadJSM (Performable m))
             => AppState t2 -> Event t1 a -> m ()
 updateState appState success = do
     performEvent_ $ ffor success $ \_ -> liftJSM $ do
-      ct <- getCookies
-      let mParsed = statusCookieMaybe ct >>= parseCookie
-      liftIO $ triggerLoggedIn appState mParsed
+      liftIO $ refreshUserReq appState ()
 
