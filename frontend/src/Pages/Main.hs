@@ -228,15 +228,30 @@ input appState clearEv = do
     else blank
   pure ie
 
+requestEvent :: Reflex t 
+             => Dynamic t Msg 
+             -> Event t UserInfo 
+             -> Event t MessageReq
+requestEvent msgDyn nameAuthEv = 
+  attachPromptlyDynWith
+    (\msg (UserInfo user uid) -> MessageReq user uid msg)
+    msgDyn
+    nameAuthEv
+
 postMsgs :: (Applicative m, Prerender t m)
-         => InputElement er d t
+         => AppState t
+         -> InputElement er d t
          -> Event t ()
          -> m ()
-postMsgs inputEl enterEv =
+postMsgs appState inputEl enterEv =
   void $ prerender (pure ()) $ mdo
-    rec
-       let msgEv = tagPromptlyDyn (_inputElement_value inputEl) enterEv
-    void $ sendRequest "post" msgEv
+  rec
+    let nameAuthEvMb = tagPromptlyDyn (appLoggedIn appState) enterEv
+        nameAuthEv   = fromMaybe (UserInfo "" 0) <$> nameAuthEvMb
+        msgEv = tagPromptlyDyn (_inputElement_value inputEl) enterEv
+        reqEv   = requestEvent msgDyn nameAuthEv
+    msgDyn <- holdDyn "" msgEv
+  void $ sendRequest "post" reqEv
 
 sendTweet :: (DomBuilder t m , PostBuild t m , MonadFix m, Prerender t m) 
           => AppState t -> m ()
@@ -250,7 +265,7 @@ sendTweet appState = mdo
 
       -- TODO: Needs to be an textArea
       inputEl     <- el_ DIV $ input appState clearEv
-      void $ postMsgs inputEl loginEv
+      void $ postMsgs appState inputEl loginEv
     pure ()
   pure ()
 
