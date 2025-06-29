@@ -25,7 +25,7 @@ updateMessageLikes pool key rid = do
   utc <- liftIO getCurrentTime
   let tweets = (\(Entity id t) -> (id, t)) <$> eTweets
       keyid  = toSqlKey $ fromInteger key
-      rid64  = fromInteger rid
+      rid64  = toSqlKey $ fromInteger rid
       tweet  = head . filter (\id -> fst id == keyid)
       toggle lst = if elem rid64 lst then L.delete rid64 lst else rid64 : lst
       incLikes  = L.nub . toggle . tweetsLikes . snd . tweet
@@ -45,8 +45,8 @@ updateMessageFollows pool pid rid = do
   eUsers <- liftIO $ runSqlPool (selectList [] [Desc TwitsName]) pool
   utc <- liftIO getCurrentTime
   let users  = (\(Entity id u) -> (id, u)) <$> eUsers
-      (pidKey, pid64) = keyAnd64 pid
-      (ridKey, rid64) = keyAnd64 rid
+      pidKey = intToSqlKey pid
+      ridKey = intToSqlKey rid
       follower   = head . filter (\id -> fst id == pidKey)
       following  = head . filter (\id -> fst id == ridKey)
       toggle rok lst = if   elem rok lst
@@ -54,11 +54,11 @@ updateMessageFollows pool pid rid = do
                        else rok : lst
       addFollowers rok = L.nub . toggle rok . twitsFollowers . snd . follower
       addFollowing rok = L.nub . toggle rok . twitsFollowing . snd . following
-  runSqlPool ( P.update pidKey [ TwitsFollowers  =. addFollowers rid64 users
+  runSqlPool ( P.update pidKey [ TwitsFollowers  =. addFollowers ridKey users
                                , TwitsUpdated_at =. utc
                                ]
              ) pool
-  runSqlPool ( P.update ridKey [ TwitsFollowing  =. addFollowing pid64 users
+  runSqlPool ( P.update ridKey [ TwitsFollowing  =. addFollowing pidKey users
                                , TwitsUpdated_at =. utc
                                ]
              ) pool

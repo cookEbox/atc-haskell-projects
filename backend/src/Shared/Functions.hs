@@ -7,7 +7,7 @@ import           Common.Api
 import           Crypto.Hash.Algorithms  (SHA256)
 import           Crypto.KDF.BCrypt       (hashPassword)
 import           Crypto.MAC.HMAC         hiding (update)
-import           Data.Aeson              as A
+import qualified Data.Aeson              as A
 import           Data.ByteArray          (convert)
 import qualified Data.ByteString         as BS
 import qualified Data.ByteString.Base64  as B64
@@ -17,12 +17,15 @@ import           Data.Text.Encoding      (decodeUtf8, encodeUtf8)
 import           Data.Time.Clock         (getCurrentTime)
 import           Database.DB
 import           Database.Persist        hiding (Add, count)
-import           Database.Persist.Sqlite (runSqlite)
+import           Database.Persist.Sqlite (runSqlite, toSqlKey)
 import           Maybes                  (rightToMaybe)
 import           Prelude                 hiding (id)
 import           Snap
 import qualified System.IO.Streams       as Streams (toList)
 -- import           System.Environment      (getEnv)
+
+intToSqlKey :: Integer -> Key Twits
+intToSqlKey = toSqlKey . fromIntegral
 
 getRequestBody :: MonadSnap m => m LBS.ByteString
 getRequestBody = LBS.fromChunks <$> runRequestBody Streams.toList
@@ -55,7 +58,7 @@ verifyToken key encoded = do
   let (payload, sig) = BS.splitAt (BS.length raw - 32) raw
       expected = convert $ hmacGetDigest (hmac key payload :: HMAC SHA256)
   if sig == expected
-  then decodeStrict payload
+  then A.decodeStrict payload
   else Nothing
 
 authCookieName :: BS.ByteString

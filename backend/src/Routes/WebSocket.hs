@@ -29,6 +29,7 @@ import           Database.Persist.Sqlite    (ConnectionPool, runSqlPool)
 import           Network.WebSockets
 import           Network.WebSockets.Snap
 import           Prelude                    hiding (id)
+import           Shared.Functions           (intToSqlKey)
 import           Snap
 import           System.Directory           (getModificationTime)
 
@@ -57,7 +58,7 @@ userKeyMb usr = fmap (toInteger . fromSqlKey)
               . idOrbdy fst usr
 
 followedBy :: Text -> [(a, Twits)] -> [Integer]
-followedBy usr  = fmap toInteger
+followedBy usr  = fmap (toInteger . fromSqlKey)
                 . fromMaybe []
                 . fmap twitsFollowers
                 . idOrbdy snd usr
@@ -74,7 +75,7 @@ respBuilder twts usrs por =
          (tweetsUser_name t)
          (userKeyMb (tweetsUser_name t) usrs)
          (tweetsContent t)
-         (toInteger <$> tweetsLikes t)
+         (toInteger . fromSqlKey <$> tweetsLikes t)
          Nothing
          (followedBy (tweetsUser_name t) usrs)
          (tweetsCreated_at t)
@@ -108,13 +109,13 @@ getTweetDelta pool lastTime All
   = sequence . (:[]) $ fetchTweetsDelta pool lastTime []
 getTweetDelta pool lastTime (UserMsgs uid)
   = sequence . (:[]) $ fetchTweetsDelta pool lastTime 
-                       [TweetsUser_id ==. fromIntegral uid]
+                       [TweetsUser_id ==. (intToSqlKey uid)]
 getTweetDelta pool lastTime (Following uid) = do
   fsm <- runDB pool $ fmap twitsFollowing 
-                   <$> P.get (toSqlKey $ fromIntegral uid)
+                   <$> P.get (intToSqlKey uid)
   let fs      = fromMaybe [] fsm
       fetch f = fetchTweetsDelta pool lastTime [TweetsUser_id ==. f]
-  sequence $ fetch <$> fs
+  traverse fetch fs
 
 getUserDelta :: ConnectionPool -> UTCTime -> IO (UTCTime, [Entity Twits])
 getUserDelta pool lastTime = do
@@ -195,7 +196,7 @@ initialUserDb :: MonadIO m
               -> m ([Entity Tweets], [Entity Twits])
 initialUserDb pool uid = runDB pool $ do
   let twitsKey = toSqlKey (fromIntegral uid)
-  twts <- selectList [TweetsUser_id ==. fromIntegral uid] 
+  twts <- selectList [TweetsUser_id ==. (intToSqlKey uid)] 
                      [Desc TweetsCreated_at]
   usrs <- selectList [TwitsId ==. twitsKey] []
   pure (twts, usrs)
@@ -212,7 +213,7 @@ initialFollowersDb pool uid = runDB pool $ do
                   pool 
                   (posixSecondsToUTCTime 0) 
                   [TweetsUser_id ==. f]
-  tweets <- liftIO . sequence $ fetch <$> fs
+  tweets <- liftIO $ traverse fetch fs
   let twts = concat $ (\t -> fmap snd t) tweets
   usrs <- selectList [] [Desc TwitsName]
   pure (twts, usrs)

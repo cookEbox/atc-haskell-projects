@@ -17,22 +17,21 @@ module Database.DB where
 import           Data.Text           (Text)
 import           Data.Time.Clock     (UTCTime)
 import           Database.Persist.TH
-import           GHC.Int             (Int64)
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 Twits
     name       Text
     password   Text
-    followers  [Int64]
-    following  [Int64]
+    followers  [TwitsId]
+    following  [TwitsId]
     UniqueTwit name
     updated_at UTCTime
     deriving Show Eq
 Tweets
     user_name  Text
-    user_id    Int64      -- can this be TwitsId
-    likes      [Int64]
-    reply_id   [Int64]
+    user_id    TwitsId
+    likes      [TwitsId]
+    reply_id   [TweetsId]
     content    Text
     created_at UTCTime
     updated_at UTCTime
