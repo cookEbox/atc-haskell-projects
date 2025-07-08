@@ -43,6 +43,7 @@ library
     Routes.Updates
     Routes.WebSocket
     Database.DB
+    Database.Memory
     Shared.Functions
 
   ghc-options: -Wall -O -fno-show-valid-hole-fits

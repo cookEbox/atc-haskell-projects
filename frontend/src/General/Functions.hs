@@ -56,8 +56,10 @@ parseCookie cookieText =
   in (,,) <$> authVal <*> userVal <*> idVal
 
 data AppState t = AppState
-  { appLoggedIn     :: Dynamic t (Maybe UserInfo)
-  , refreshUserReq  :: () -> IO ()
+  { appLoggedIn    :: Dynamic t (Maybe UserInfo)
+  , refreshUserReq :: () -> IO ()
+  , profileUidDyn  :: Dynamic t (Maybe Integer)
+  , profileClick   :: Integer -> IO ()
   } 
 
 flattenDyn :: Reflex t => Dynamic t (Dynamic t a) -> Dynamic t a

@@ -20,16 +20,16 @@ import Routes.Validate
 import           Snap
 
 updateMessageLikes :: ConnectionPool -> Integer -> Integer -> IO ()
-updateMessageLikes pool key rid = do
+updateMessageLikes pool pid rid = do
   eTweets <- liftIO $ runSqlPool (selectList [] [Desc TweetsCreated_at]) pool
   utc <- liftIO getCurrentTime
   let tweets = (\(Entity id t) -> (id, t)) <$> eTweets
-      keyid  = toSqlKey $ fromInteger key
-      rid64  = toSqlKey $ fromInteger rid
-      tweet  = head . filter (\id -> fst id == keyid)
-      toggle lst = if elem rid64 lst then L.delete rid64 lst else rid64 : lst
+      pidKey  = toSqlKey $ fromInteger pid
+      ridKey  = toSqlKey $ fromInteger rid
+      tweet  = head . filter (\id -> fst id == pidKey)
+      toggle lst = if elem ridKey lst then L.delete ridKey lst else ridKey : lst
       incLikes  = L.nub . toggle . tweetsLikes . snd . tweet
-  runSqlPool ( P.update keyid [ TweetsLikes      =. incLikes tweets
+  runSqlPool ( P.update pidKey [ TweetsLikes      =. incLikes tweets
                               , TweetsUpdated_at =. utc
                               ]
              ) pool

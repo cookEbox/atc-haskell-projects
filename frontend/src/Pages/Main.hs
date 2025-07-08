@@ -12,6 +12,7 @@ module Pages.Main where
 import           Common.Api
 import           Common.Route
 import           Control.Monad               (void)
+import           Control.Monad.IO.Class      (MonadIO, liftIO)
 import           Control.Monad.Fix           (MonadFix)
 import           Data.Aeson                  (eitherDecodeStrict')
 import           Data.ByteString             (ByteString)
@@ -138,12 +139,27 @@ maybeFollowButton userIdDynMb mapDyn = do
       (Just False) -> blank 
       (Just True) -> followButton userIdDynMb mapDyn
 
-printUserName :: (DomBuilder t f, PostBuild t f) 
-              => Dynamic t MessageRespS -> f ()
-printUserName mapDyn = do 
-  void $ dyn $ ffor mapDyn $ \msgResp -> do
-    let user = resUserNameS msgResp
-    el_ SPAN $ text user
+printUserNameLinked :: ( PerformEvent t1 f
+                       , SetRoute t1 (R FrontendRoute) f
+                       , MonadIO (Performable f)
+                       , DomBuilder t1 f
+                       , PostBuild t1 f
+                       ) => AppState t2 -> Dynamic t1 MessageRespS -> f ()
+printUserNameLinked appState msgDyn = do
+  let authorNameDyn = fmap (resUserNameS) msgDyn
+      authorIdDyn   = fmap resUserIdS      msgDyn
+
+  void $ dyn $ ffor (zipDynWith (,) authorNameDyn authorIdDyn) $ \(nm, mbId) ->
+    case mbId of
+      Just uid -> do
+        (el, _) <- elAttR_ A (multi [Href "#", Class "username-link"]) (text nm)
+        let clickE     = domEvent Click el
+            routeE     = FrontendRoute_Profile :/ () <$ clickE
+            profileE   = uid <$ clickE
+        setRoute routeE
+        performEvent_ $ liftIO . profileClick appState <$> profileE
+
+      Nothing -> text "unknown user"
 
 printLikes :: (DomBuilder t f, PostBuild t f) 
            => Dynamic t MessageRespS -> f ()
@@ -176,6 +192,9 @@ displayMessages :: ( DomBuilder t m
                    , MonadHold t m
                    , MonadFix m
                    , Prerender t m
+                   , PerformEvent t m
+                   , MonadIO (Performable m)
+                   , SetRoute t (R FrontendRoute) m
                    ) => AppState t 
                      -> Dynamic t (M.Map Integer MessageRespS) 
                      -> m (Dynamic t (Maybe Integer))
@@ -191,7 +210,7 @@ displayMessages appState respMapDyn = mdo
         let classDyn = classDynSw userIdDynMb msgDyn
         elDynClass "div" classDyn $ do
           elClass_ DIV "message-header" $ do
-            printUserName msgDyn
+            printUserNameLinked appState msgDyn
             maybeFollowButton userIdDynMb msgDyn
           elClass_ DIV "message-body" $ do
             printMessage msgDyn

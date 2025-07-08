@@ -22,6 +22,8 @@ import           Obelisk.Route.Frontend
 import           Pages.Login
 import           Pages.Main
 import           Pages.Signup
+import           Pages.Profile
+import           Pages.ProfileUp
 import           Reflex.Dom.Core
 
 buildAppState :: ObeliskWidget t (R FrontendRoute) m => m (AppState t)
@@ -29,11 +31,13 @@ buildAppState = mdo
   (refreshEv, triggerRefresh) <- newTriggerEvent
   nestedDyn <- prerender
     (pure $ constDyn Nothing) $ do
-      onLoad <- getPostBuild
-      let reloadEv = leftmost [onLoad, refreshEv]
+      onLoadEv <- getPostBuild
+      let reloadEv = leftmost [onLoadEv, refreshEv]
       respEv <- sendRequest "auth" reloadEv
       holdDyn Nothing $ fmap decodeUserInfo (_xhrResponse_responseText <$> respEv)
-  pure $ AppState (flattenDyn nestedDyn) triggerRefresh
+  (profileClickEv, triggerProfileClick) <- newTriggerEvent
+  profileUidDyn <- holdDyn Nothing (Just <$> profileClickEv)
+  pure $ AppState (flattenDyn nestedDyn) triggerRefresh profileUidDyn triggerProfileClick
   where
     decodeUserInfo = (>>= decodeStrict . encodeUtf8)
 
@@ -54,9 +58,11 @@ frontend = Frontend
   , _frontend_body = do
     appState <- buildAppState
     subRoute_ $ \case
-      FrontendRoute_Main -> mainPage appState
-      FrontendRoute_Login -> loginPage appState
-      FrontendRoute_Signup -> signupPage appState
+      FrontendRoute_Main      -> mainPage appState
+      FrontendRoute_Login     -> loginPage appState
+      FrontendRoute_Signup    -> signupPage appState
+      FrontendRoute_Profile   -> profile appState
+      FrontendRoute_ProfileUp -> profileSubmit appState
     pure ()
   }
 

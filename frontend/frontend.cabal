@@ -25,12 +25,16 @@ library
                , containers
                , semigroupoids
                , data-default-class
+               , parsec
+               , extra
   exposed-modules:
     Frontend
   other-modules: 
     Pages.Login
     Pages.Signup
     Pages.Main
+    Pages.Profile
+    Pages.ProfileUp
     General.Functions
     General.Buttons
     General.Elements

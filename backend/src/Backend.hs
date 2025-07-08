@@ -18,6 +18,8 @@ import           Routes.Login
 import           Routes.Posted
 import           Routes.Signup
 import           Routes.Update
+import           Routes.ProfileUp
+import           Routes.Profile
 import           Routes.WebSocket
 import           Routes.Validate
 import           Snap
@@ -38,6 +40,8 @@ backendHandlers pool = \case
   BackendRoute_Logout    :/ () -> logout
   BackendRoute_Signup    :/ () -> signup    pool
   BackendRoute_Update    :/ () -> update    pool
+  BackendRoute_Profile   :/ () -> profile   pool
+  BackendRoute_ProfileUp :/ () -> profileUp pool
   BackendRoute_WebSocket :/ () -> websocket pool
   BackendRoute_Auth      :/ () -> auth 
   BackendRoute_Missing   :/ () -> do

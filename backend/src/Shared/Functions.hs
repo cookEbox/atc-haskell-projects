@@ -39,7 +39,17 @@ storeUser :: Text -> Text -> IO ()
 storeUser username password = do
   utc <- getCurrentTime
   hashed <- hashPasswordSecure password
-  runSqlite "Twits.db" $ insert_ (Twits username hashed [] [] utc)
+  runSqlite "Twits.db" $ insert_ 
+    ( Twits username 
+            hashed 
+            [] 
+            [] 
+            utc 
+            Nothing 
+            Nothing 
+            Nothing 
+            Nothing 
+    )
 
 signToken :: BS.ByteString -> AuthToken -> BS.ByteString
 signToken key token =

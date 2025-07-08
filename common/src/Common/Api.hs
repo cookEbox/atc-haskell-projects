@@ -17,11 +17,29 @@ module Common.Api where
 import           Crypto.Hash              (SHA256 (SHA256), hashWith)
 import           Data.Aeson               (FromJSON, ToJSON)
 import qualified Data.ByteString.Internal as I
+import           Data.Map                 (Map)
 import           Data.Text                (Text, pack)
 import           Data.Text.Encoding       (encodeUtf8)
 import           Data.Time                (UTCTime)
+import           Data.Time.Calendar       (Day)
 import           GHC.Generics             (Generic)
-import Data.Map (Map)
+
+data UserProfile = UserProfile
+  { prName     :: Maybe UserName
+  , prDOB      :: Maybe Day
+  , prLocation :: Maybe Text
+  , prHobbies  :: Maybe Text
+  , prBio      :: Maybe Text
+  , prId       :: Maybe Integer
+  } deriving stock (Show, Generic)
+instance ToJSON UserProfile
+instance FromJSON UserProfile
+
+data ProfileInfo = ProfileInfo 
+  { piId :: Integer 
+  } deriving stock (Show, Generic)
+instance ToJSON ProfileInfo
+instance FromJSON ProfileInfo
 
 data UserInfo = UserInfo
   { uiName :: UserName
@@ -53,9 +71,9 @@ instance FromJSON UserDetailsResp
 instance ToJSON UserDetailsResp
 
 data MessageReq = MessageReq
-  { reqUserName   :: UserName
-  , userId        :: Integer
-  , userInput     :: Msg
+  { reqUserName :: UserName
+  , userId      :: Integer
+  , userInput   :: Msg
   } deriving stock (Show, Eq, Generic)
 instance ToJSON MessageReq
 instance FromJSON MessageReq
@@ -82,16 +100,16 @@ instance ToJSON MessageResp
 instance FromJSON MessageResp
 
 data MessageResps = MessageResps
-  { responseMsgs :: [MessageResp] -- look at this add likes, replies
+  { responseMsgs :: [MessageResp]
   } deriving stock (Show, Eq, Generic)
 instance ToJSON MessageResps
 instance FromJSON MessageResps
 
 data MessageReply = MessageReply
-  { reply         :: Maybe MessageReq
-  , replyType     :: ReplyType
-  , parentId      :: (Maybe Integer)
-  , replierId     :: Integer
+  { reply     :: Maybe MessageReq
+  , replyType :: ReplyType
+  , parentId  :: (Maybe Integer)
+  , replierId :: Integer
   } deriving stock (Show, Eq, Generic)
 instance ToJSON MessageReply
 instance FromJSON MessageReply
@@ -119,15 +137,15 @@ data PatchOrReplace = Patch | Replace deriving stock (Show, Eq, Generic)
 instance ToJSON PatchOrReplace
 instance FromJSON PatchOrReplace
 
-data MessageRespsS = MessageRespsS 
+data MessageRespsS = MessageRespsS
   { patchOrReplace :: PatchOrReplace
-  , responseMsgsS :: Map Integer MessageRespS
+  , responseMsgsS  :: Map Integer MessageRespS
   } deriving stock (Show, Eq, Generic)
 instance ToJSON MessageRespsS
 instance FromJSON MessageRespsS
 
-data ClientMsg 
-  = All 
+data ClientMsg
+  = All
   | UserMsgs Integer
   | Following Integer
   deriving stock (Show, Eq, Generic)

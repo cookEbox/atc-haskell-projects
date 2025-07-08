@@ -15,6 +15,7 @@
 module Database.DB where
 
 import           Data.Text           (Text)
+import           Data.Time.Calendar  (Day)
 import           Data.Time.Clock     (UTCTime)
 import           Database.Persist.TH
 
@@ -24,8 +25,12 @@ Twits
     password   Text
     followers  [TwitsId]
     following  [TwitsId]
-    UniqueTwit name
     updated_at UTCTime
+    dob        (Maybe Day)
+    location   (Maybe Text)
+    hobbies    (Maybe Text)
+    bio        (Maybe Text)
+    UniqueTwit name
     deriving Show Eq
 Tweets
     user_name  Text
