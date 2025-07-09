@@ -1,6 +1,6 @@
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE FlexibleContexts    #-}
 
 module Routes.Update where
 
@@ -8,15 +8,16 @@ import           Common.Api
 import           Control.Monad.IO.Class  (liftIO)
 import           Data.Aeson              as A hiding (Key)
 import qualified Data.List               as L (delete, nub)
+import           Data.Text               (Text)
 import           Data.Time.Clock         (getCurrentTime)
 import           Database.DB
 import           Database.Persist        as P hiding (Add, count)
-import           Database.Persist.Sql    (toSqlKey, SqlBackend)
+import           Database.Persist.Sql    (SqlBackend, toSqlKey)
 import           Database.Persist.Sqlite (ConnectionPool, runSqlPool)
 import           GHC.Int                 (Int64)
 import           Prelude                 hiding (id)
+import           Routes.Validate
 import           Shared.Functions
-import Routes.Validate
 import           Snap
 
 updateMessageLikes :: ConnectionPool -> Integer -> Integer -> IO ()
@@ -34,7 +35,7 @@ updateMessageLikes pool pid rid = do
                               ]
              ) pool
 
-keyAnd64 :: forall record. ToBackendKey SqlBackend record 
+keyAnd64 :: forall record. ToBackendKey SqlBackend record
          => Integer -> (Key record, Int64)
 keyAnd64 n = (toSqlKey n64, n64)
   where
@@ -68,7 +69,7 @@ whatUpdate pool (MessageReply Nothing Like (Just pid) rid) userInfo
   = if rid == uiId userInfo
     then updateMessageLikes pool pid rid
     else pure ()
-whatUpdate pool (MessageReply Nothing Follow (Just pid) rid) userInfo 
+whatUpdate pool (MessageReply Nothing Follow (Just pid) rid) userInfo
   = do
       if rid == uiId userInfo
       then case pid == rid of
@@ -83,15 +84,15 @@ update :: ConnectionPool ->  Snap ()
 update pool = do
   req <- getRequestBody
   authorised <- validate
-  case authorised of 
+  case authorised of
     Just userInfo ->
       case A.decode req of
         Just msgReply -> liftIO $ whatUpdate pool msgReply userInfo
         Nothing -> do
           modifyResponse $ setResponseStatus 400 "Bad Request"
           modifyResponse $ setHeader "Content-Type" "application/json"
-          writeLBS "{\"error\": \"Invalid JSON\"}"
+          writeLBS . A.encode $ A.object ["error" .= ("Invalid JSON" :: Text)]
     Nothing -> do
           modifyResponse $ setResponseStatus 400 "Bad Request"
           modifyResponse $ setHeader "Content-Type" "application/json"
-          writeLBS "{\"error\": \"Not logged in\"}"
+          writeLBS . A.encode $ A.object ["error" .= ("Not logged in" :: Text)]

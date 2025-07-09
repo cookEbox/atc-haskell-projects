@@ -13,47 +13,9 @@ import           Common.Api
 import           Control.Monad.IO.Class      (liftIO)
 import           Data.Aeson                  (ToJSON)
 import           Data.Map.Strict             (singleton, (!))
-import           Data.Maybe                  (listToMaybe)
-import           Data.Text                   (Text, isInfixOf, splitOn, strip,
-                                              stripPrefix, unpack)
-import           Data.Time.Clock             (getCurrentTime)
-import           Language.Javascript.JSaddle (JSM, MonadJSM, eval, liftJSM,
-                                              strToText, valToStr)
+import           Data.Text                   (Text)
+import           Language.Javascript.JSaddle (MonadJSM, liftJSM)
 import           Reflex.Dom.Core
-
-getCookies :: JSM Text
-getCookies = strToText <$> (valToStr =<< eval ("document.cookie" :: Text))
-
-cookieGetter :: (MonadWidget t m) => m (Dynamic t Text)
-cookieGetter = do
-  getter <- getPostBuild
-  cookieEvent <- performEvent (liftJSM getCookies <$ getter)
-  holdDyn "" cookieEvent
-
-cookieWatcher :: (MonadWidget t m) => m (Dynamic t Text)
-cookieWatcher = do
-  tick <- tickLossy 0.1 =<< liftIO getCurrentTime
-  cookieEvent <- performEvent (liftJSM getCookies <$ tick)
-  holdDyn "" cookieEvent
-
-statusCookieMaybe :: Text -> Maybe Text
-statusCookieMaybe cookieDyn =
-  case isInfixOf "status=loggedIn" cookieDyn of
-    True  -> Just cookieDyn
-    False -> Nothing
-
-data User = User { username  :: Text    } deriving stock Eq
-data Auth = Auth { authtoken :: Text    } deriving stock Eq
-data UID  = UID  { userid    :: Integer } deriving stock Eq
-type CookieData = Maybe (Auth, User, UID)
-
-parseCookie :: Text -> CookieData
-parseCookie cookieText =
-  let cookies = map strip $ splitOn ";" cookieText
-      authVal = Auth <$> listToMaybe [val | entry <- cookies, Just val <- [stripPrefix "auth=" entry]]
-      userVal = User <$> listToMaybe [val | entry <- cookies, Just val <- [stripPrefix "user=" entry]]
-      idVal   = UID . read . unpack  <$> listToMaybe [val | entry <- cookies, Just val <- [stripPrefix "id=" entry]]
-  in (,,) <$> authVal <*> userVal <*> idVal
 
 data AppState t = AppState
   { appLoggedIn    :: Dynamic t (Maybe UserInfo)

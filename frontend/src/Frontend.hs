@@ -41,7 +41,6 @@ buildAppState = mdo
   where
     decodeUserInfo = (>>= decodeStrict . encodeUtf8)
 
-
 frontend :: Frontend (R FrontendRoute)
 frontend = Frontend
   { _frontend_head = do

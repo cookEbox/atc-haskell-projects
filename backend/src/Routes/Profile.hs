@@ -7,6 +7,7 @@ module Routes.Profile where
 import           Common.Api
 import           Control.Monad.IO.Class  (liftIO)
 import           Data.Aeson              as A hiding (Key)
+import           Data.Text               (Text)
 import           Database.DB
 import           Database.Persist        as P hiding (Add, count)
 import           Database.Persist.Sql    (fromSqlKey)
@@ -40,15 +41,15 @@ profile pool = do
   case authorised of
     Just _ ->
       case A.decode req of
-        Just piid -> do 
+        Just piid -> do
             userProfile <- getProfile pool (piId piid)
             modifyResponse $ setHeader "Content-Type" "application/json"
             writeLBS (A.encode userProfile)
         Nothing -> do
           modifyResponse $ setResponseStatus 400 "Bad Request"
           modifyResponse $ setHeader "Content-Type" "application/json"
-          writeLBS "{\"error\": \"Invalid JSON\"}"
+          writeLBS . A.encode $ A.object ["error" .= ("Invalid JSON" :: Text)]
     Nothing -> do
           modifyResponse $ setResponseStatus 400 "Bad Request"
           modifyResponse $ setHeader "Content-Type" "application/json"
-          writeLBS "{\"error\": \"Not logged in\"}"
+          writeLBS . A.encode $ A.object ["error" .= ("Not logged in" :: Text)]

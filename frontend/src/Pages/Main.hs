@@ -23,7 +23,6 @@ import           Data.Text                   (Text, pack, null, unpack)
 import           General.Buttons
 import           General.Elements
 import           General.Functions
-import           Language.Javascript.JSaddle (liftJSM)
 import           Obelisk.Frontend
 import           Obelisk.Route
 import           Obelisk.Route.Frontend
@@ -220,15 +219,6 @@ displayMessages appState respMapDyn = mdo
     pure userIdDynMb
   pure uidMb
 
-selectCookies :: MonadWidget t m
-              => Event t ()
-              -> m (Event t CookieData)
-selectCookies clickEv = do
-  authEvent <- performEvent $ ffor clickEv $ \_ -> do
-    cookieText <- liftJSM getCookies
-    pure (parseCookie cookieText)
-  pure authEvent
-
 input :: (DomBuilder t m, PostBuild t m)
       => AppState t
       -> Event t Text
@@ -304,7 +294,7 @@ holdWidget :: (DomBuilder t m, MonadHold t m)
            -> Dynamic t (Maybe Integer) 
            -> m (Dynamic t (Event t [ClientMsg]))
 holdWidget onOpen uidMb = widgetHold
-            (pure $ [All] <$ onOpen)
+            (feedButtons 0)  
             (ffor (updated uidMb) $ \case
                Nothing  -> pure $ [All] <$ onOpen
                Just uid -> feedButtons uid
