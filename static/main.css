@@ -60,16 +60,40 @@ body {
 /* Top Row: feed buttons */
 .feed-buttons {
   display: flex;
-  gap: 0.5rem;
-  margin-left: 1cm;
-  justify-content: flex-start;
-  align-items: center;
+  gap: .5rem;
 }
-.feed-buttons button {
-  background: var(--gruv-accent);
-  color: var(--gruv-back);
+
+/* hide the native radio control */
+.feed-buttons input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* labels styled as buttons */
+.feed-buttons label {
+  position: relative;
+  cursor: pointer;
+  padding: .5rem 1rem;
   border: 1px solid var(--gruv-light3);
   border-radius: 4px;
+  background: var(--gruv-accent);
+  color: var(--gruv-back);
+  /* subtle base shadow + smooth transitions */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: box-shadow .2s ease;
+}
+
+/* hover = lifted */
+.feed-buttons label:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* checked = “pressed in” purely with inset shadows */
+.feed-buttons input[type="radio"]:checked + label {
+  box-shadow:
+    inset 2px 2px 5px rgba(0,0,0,0.3),
+    inset -2px -2px 5px rgba(255,255,255,0.3);
 }
 
 /* Second Row: tweet input + send button */
@@ -134,8 +158,27 @@ body {
   border-radius: 4px;
 }
 
-.send-button i {
-  font-size: 1.7rem;
+.send-button {
+  position: relative;
+  background: var(--gruv-accent);
+  color: var(--gruv-back);
+  border: 1px solid var(--gruv-light3);
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.send-button:hover {
+  /* same lift you see on the “All/My/Friends” labels */
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.send-button:active {
+  /* momentary inset look */
+  box-shadow:
+    inset 2px 2px 5px rgba(0,0,0,0.3),
+    inset -2px -2px 5px rgba(255,255,255,0.3);
 }
 
 /* === Messages === */

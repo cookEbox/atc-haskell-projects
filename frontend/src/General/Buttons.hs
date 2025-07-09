@@ -5,6 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module General.Buttons ( loginControlButton
+                       , mainPageButton
                        , LoggedOutButtons 
                          ( LoginAndMain
                          , LoginAndSignup
@@ -102,16 +103,20 @@ textBox NotPassword clearEv Persistent
   = inputElement $ def 
                  & inputElementConfig_setValue .~ clearEv
                  & inputElementConfig_elementConfig 
-                   . elementConfig_initialAttributes .~ ("maxlength" =: "64")
+                   . elementConfig_initialAttributes 
+                   .~ ("maxlength" =: "64")
 textBox NotPassword clearEv (Hideable hideEv) 
   = inputElement $ def 
                  & inputElementConfig_setValue .~ clearEv
                  & inputElementConfig_elementConfig 
-                   . elementConfig_initialAttributes .~ ("disabled" =: "true" <> "maxlength" =: "280")
+                   . elementConfig_initialAttributes 
+                   .~ ("disabled" =: "true" <> "maxlength" =: "280")
                  & inputElementConfig_elementConfig 
-                   . elementConfig_modifyAttributes .~ hideEv
+                   . elementConfig_modifyAttributes 
+                   .~ hideEv
 textBox Password clearEv _ 
   = inputElement $ def
                  & inputElementConfig_elementConfig 
-                   . elementConfig_initialAttributes .~ ("type" =: "password" <> "maxlength" =: "64")
+                   . elementConfig_initialAttributes 
+                   .~ ("type" =: "password" <> "maxlength" =: "64")
                  & inputElementConfig_setValue .~ clearEv

@@ -10,9 +10,11 @@ module Pages.Profile where
 import           Common.Api
 import           Common.Route
 import           Control.Monad          (void)
+import           Data.Either.Extra      (eitherToMaybe)
+import           Data.Functor.Identity  (Identity)
 import           Data.Maybe             (fromMaybe)
-import           Data.Text              (pack)
-import           Data.Time.Calendar     (showGregorian)
+import           Data.Text              (Text, pack)
+import           Data.Time.Calendar     (Day, showGregorian)
 import           General.Buttons
 import           General.Elements
 import           General.Functions
@@ -20,7 +22,9 @@ import           Obelisk.Frontend
 import           Obelisk.Route
 import           Obelisk.Route.Frontend
 import           Prelude                hiding (null)
-import           Reflex.Dom.Core        hiding (el, elAttr, elAttr')
+import           Reflex.Dom.Core        hiding (count, el, elAttr, elAttr')
+import           Text.Parsec            (ParsecT, count, parse)
+import           Text.Parsec.Char       (char, digit)
 
 getProfile :: (Monad m, Prerender t m)
            => Event t ProfileInfo
@@ -52,6 +56,20 @@ editProfileButton = do
   editClickEv <- button "Edit"
   setRoute $ (FrontendRoute_ProfileUp :/ ()) <$ editClickEv
 
+type Parse a = ParsecT String () Identity a
+
+gregorianParser :: Parse String 
+gregorianParser = do 
+  year <- count 4 digit 
+  void $ char '-' 
+  month <- count 2 digit 
+  void $ char '-'
+  day <- count 2 digit 
+  pure $ concat [day, "/", month, "/", year]
+
+printDate :: Day -> Maybe Text
+printDate = fmap pack . eitherToMaybe . parse gregorianParser "DOB" . showGregorian
+
 profile :: ObeliskWidget t (R FrontendRoute) m
         => AppState t -> RoutedT t () m ()
 profile appState = do
@@ -68,7 +86,7 @@ profile appState = do
     case profMb of
       Nothing -> 
         elClass_ DIV "profile-container" $ do
-          -- TODO: Add main page button
+          mainPageButton
           loginControlButton LoginAndMain appState
           el_ H1 $ text "PROFILE PAGE"
           elClass_ DIV "not-found" $
@@ -76,19 +94,18 @@ profile appState = do
 
       Just prof -> do
         elClass_ DIV "profile-container" $ do
-          -- TODO: Add main page button
           elClass_ DIV "profile-buttons" $ do 
-            loginControlButton LoginAndMain appState
             showEditButton appState
+            mainPageButton
+            loginControlButton LoginAndMain appState
           el_ H1 $ text "PROFILE PAGE"
           elClass_ DIV "profile-field" $ do
             elClass_ DIV "profile-label" $ text "Username: "
             el_ DIV $ text (fromMaybe "" $ prName prof)
 
-          -- TODO: showGregorian to dd/mm/yyyy
           elClass_ DIV "profile-field" $ do
             elClass_ DIV "profile-label" $ text "DOB (dd/mm/yyyy): "
-            el_ DIV $ text (fromMaybe "" $ pack . showGregorian <$> prDOB prof)
+            el_ DIV $ text (fromMaybe "" $ prDOB prof >>= printDate)
 
           elClass_ DIV "profile-field" $ do
             elClass_ DIV "profile-label" $ text "City/County: "

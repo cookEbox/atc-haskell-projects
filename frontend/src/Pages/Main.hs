@@ -257,8 +257,8 @@ postMsgs appState inputEl enterEv =
   rec
     let nameAuthEvMb = tagPromptlyDyn (appLoggedIn appState) enterEv
         nameAuthEv   = fromMaybe (UserInfo "" 0) <$> nameAuthEvMb
-        msgEv = tagPromptlyDyn (_inputElement_value inputEl) enterEv
-        reqEv   = requestEvent msgDyn nameAuthEv
+        msgEv        = tagPromptlyDyn (_inputElement_value inputEl) enterEv
+        reqEv        = requestEvent msgDyn nameAuthEv
     msgDyn <- holdDyn "" msgEv
   void $ sendRequest "post" reqEv
 
@@ -273,23 +273,60 @@ sendTweet appState = mdo
           clearEv     = "" <$ loginEv
 
       -- TODO: Needs to be an textArea
-      inputEl     <- el_ DIV $ input appState clearEv
+      inputEl <- el_ DIV $ input appState clearEv
       void $ postMsgs appState inputEl loginEv
     pure ()
   pure ()
 
-feedButtons :: DomBuilder t m 
+mainFeedButton :: MonadWidget t m 
+               => m (Element EventResult (DomBuilderSpace m) t)
+mainFeedButton = do 
+  (allEl, _) <- elAttR_ INPUT ( multi
+    [ Type    "radio"
+    , Name    "feed"
+    , Id      "feed-all"
+    , Value   "all"
+    , Checked ""
+    ]) blank
+  elAttr_ LABEL (single $ For "feed-all") $ text "All"
+  return allEl
+
+myPageFeedButton :: MonadWidget t m 
+                 => m (Element EventResult (DomBuilderSpace m) t)
+myPageFeedButton = do 
+  (myPageEl, _) <- elAttR_ INPUT ( multi
+    [ Type    "radio"
+    , Name    "feed"
+    , Id      "feed-mine"
+    , Value   "all"
+    ]) blank
+  elAttr_ LABEL (single $ For "feed-mine") $ text "Mine"
+  return myPageEl
+
+friendFeedButton :: MonadWidget t m 
+                 => m (Element EventResult (DomBuilderSpace m) t)
+friendFeedButton = do 
+  (friendEl, _) <- elAttR_ INPUT ( multi
+    [ Type    "radio"
+    , Name    "feed"
+    , Id      "feed-friends"
+    , Value   "all"
+    ]) blank
+  elAttr_ LABEL (single $ For "feed-friends") $ text "Friends"
+  return friendEl
+
+feedButtons :: MonadWidget t m 
             => Integer -> m (Event t [ClientMsg])
 feedButtons uid = do
-  mainClickEv    <- button "Main"
-  userClickEv    <- button "My Page"
-  followsClickEv <- button "Friends"
-  let mainEv        = [All]           <$ mainClickEv
-      userEv        = [UserMsgs uid]  <$ userClickEv
-      followsEv     = [Following uid] <$ followsClickEv
+  mainClickEv    <- mainFeedButton
+  userClickEv    <- myPageFeedButton
+  followsClickEv <- friendFeedButton
+  let mainEv        = [All]           <$ domEvent Click mainClickEv
+      userEv        = [UserMsgs uid]  <$ domEvent Click userClickEv
+      followsEv     = [Following uid] <$ domEvent Click followsClickEv
   pure $ leftmost [mainEv, userEv, followsEv]
 
-holdWidget :: (DomBuilder t m, MonadHold t m) 
+holdWidget :: (MonadWidget t m) 
            => Event t b 
            -> Dynamic t (Maybe Integer) 
            -> m (Dynamic t (Event t [ClientMsg]))

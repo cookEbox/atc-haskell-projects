@@ -23,7 +23,7 @@ import           Reflex.Dom.Core         hiding (tag)
 
 data Tag
   = HTML | HEAD | TITLE | BODY | STYLE
-  | FORM | SPAN | DIV   | LABEL | BUTTON
+  | FORM | SPAN | DIV   | LABEL | BUTTON | INPUT
   | H1   | H2   | H3    | H4   | H5 | P | UL | LI | I | A
   deriving stock (Show, Eq)
 
@@ -31,12 +31,24 @@ data Attris = Class    { label :: Text }
             | OnSubmit { label :: Text }
             | Type     { label :: Text }
             | Href     { label :: Text }
+            | Name     { label :: Text }
+            | Id       { label :: Text }
+            | Checked  { label :: Text } 
+            | Radio    { label :: Text } 
+            | For      { label :: Text } 
+            | Value    { label :: Text } 
 
 instance Show Attris where
   show (Class _)    = "class"
   show (Type  _)    = "type"
   show (OnSubmit _) = "onsubmit"
   show (Href _)     = "href"
+  show (Name _)     = "name"
+  show (Id _)       = "id"
+  show (Checked _)  = "checked"
+  show (Radio _)    = "radio"
+  show (For _)      = "for"
+  show (Value _)    = "for"
 
 type AttrisList = NonEmpty Attris
 single :: Attris -> AttrisList

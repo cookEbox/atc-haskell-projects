@@ -69,13 +69,21 @@ profileUpdate updateDataEv = do
     holdDyn "" failure
   pure $ flattenDyn nestedDyn
 
+profilePageButton :: ( DomBuilder t m , SetRoute t (R FrontendRoute) m) => m () 
+profilePageButton = do 
+  profileClickEv <- button "Back"
+  setRoute $ (FrontendRoute_Profile :/ ()) <$ profileClickEv
+
+--TODO: Add exsiting content to textBox
 profileSubmit :: ObeliskWidget t (R FrontendRoute) m
               => AppState t -> RoutedT t () m ()
 profileSubmit appState = do
   elClass_ DIV "profile-page" $ do
     elClass_ DIV "profile-form" $ mdo
-      -- TODO: Update the buttons for better user experience
-      loginControlButton LoginAndMain appState
+      elClass_ DIV "profile-buttons" $ do 
+        profilePageButton
+        mainPageButton
+        loginControlButton LoginAndMain appState
       el_ H1 $ text "UPDATE PROFILE PAGE"
       (formEl, _) <- elAttR_ FORM (single $ OnSubmit "return false;") $ do
         rec
