@@ -21,9 +21,9 @@ import           Obelisk.Route
 import           Obelisk.Route.Frontend
 import           Pages.Login
 import           Pages.Main
-import           Pages.Signup
 import           Pages.Profile
 import           Pages.ProfileUp
+import           Pages.Signup
 import           Reflex.Dom.Core
 
 buildAppState :: ObeliskWidget t (R FrontendRoute) m => m (AppState t)

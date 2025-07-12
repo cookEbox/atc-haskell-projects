@@ -16,12 +16,12 @@ import           Obelisk.Backend
 import           Obelisk.Route           as R
 import           Routes.Login
 import           Routes.Posted
+import           Routes.Profile
+import           Routes.ProfileUp
 import           Routes.Signup
 import           Routes.Update
-import           Routes.ProfileUp
-import           Routes.Profile
-import           Routes.WebSocket
 import           Routes.Validate
+import           Routes.WebSocket
 import           Snap
 
 backend :: Backend BackendRoute FrontendRoute
@@ -43,7 +43,7 @@ backendHandlers pool = \case
   BackendRoute_Profile   :/ () -> profile   pool
   BackendRoute_ProfileUp :/ () -> profileUp pool
   BackendRoute_WebSocket :/ () -> websocket pool
-  BackendRoute_Auth      :/ () -> auth 
+  BackendRoute_Auth      :/ () -> auth
   BackendRoute_Missing   :/ () -> do
     liftIO $ putStrLn "404: Route not found"
     modifyResponse $ setResponseStatus 404 "Not Found"

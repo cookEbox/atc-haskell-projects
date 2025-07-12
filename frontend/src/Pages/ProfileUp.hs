@@ -14,7 +14,8 @@ import           Data.Aeson             (ToJSON)
 import           Data.Either.Extra      (eitherToMaybe)
 import           Data.Functor.Identity  (Identity)
 import           Data.Maybe             (fromMaybe)
-import           Data.Text              as T (Text, isInfixOf, null, strip, unpack)
+import           Data.Text              as T (Text, isInfixOf, null, strip,
+                                              unpack)
 import           Data.Time.Calendar     (Day, fromGregorian)
 import           General.Buttons
 import           General.Elements
@@ -24,7 +25,7 @@ import           Obelisk.Route
 import           Obelisk.Route.Frontend
 import           Prelude                hiding (null)
 import           Reflex.Dom.Core        hiding (count, el, elAttr, elAttr')
-import           Text.Parsec            (ParsecT, ParseError, count, parse)
+import           Text.Parsec            (ParseError, ParsecT, count, parse)
 import           Text.Parsec.Char       (char, digit, spaces)
 
 type Parse a = ParsecT String () Identity a
@@ -69,8 +70,8 @@ profileUpdate updateDataEv = do
     holdDyn "" failure
   pure $ flattenDyn nestedDyn
 
-profilePageButton :: ( DomBuilder t m , SetRoute t (R FrontendRoute) m) => m () 
-profilePageButton = do 
+profilePageButton :: ( DomBuilder t m , SetRoute t (R FrontendRoute) m) => m ()
+profilePageButton = do
   profileClickEv <- button "Back"
   setRoute $ (FrontendRoute_Profile :/ ()) <$ profileClickEv
 
@@ -80,7 +81,7 @@ profileSubmit :: ObeliskWidget t (R FrontendRoute) m
 profileSubmit appState = do
   elClass_ DIV "profile-page" $ do
     elClass_ DIV "profile-form" $ mdo
-      elClass_ DIV "profile-buttons" $ do 
+      elClass_ DIV "profile-buttons" $ do
         profilePageButton
         mainPageButton
         loginControlButton LoginAndMain appState

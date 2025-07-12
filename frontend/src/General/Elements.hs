@@ -15,7 +15,7 @@ module General.Elements ( Tag (..)
                         , elClass_
                         ) where
 
-import Control.Lens.At (At, Index, IxValue)
+import           Control.Lens.At         (At, Index, IxValue)
 import           Data.List.NonEmpty      (NonEmpty, fromList)
 import           Data.Semigroup.Foldable (foldMap1)
 import           Data.Text               (Text, pack, toLower)
@@ -33,10 +33,10 @@ data Attris = Class    { label :: Text }
             | Href     { label :: Text }
             | Name     { label :: Text }
             | Id       { label :: Text }
-            | Checked  { label :: Text } 
-            | Radio    { label :: Text } 
-            | For      { label :: Text } 
-            | Value    { label :: Text } 
+            | Checked  { label :: Text }
+            | Radio    { label :: Text }
+            | For      { label :: Text }
+            | Value    { label :: Text }
 
 instance Show Attris where
   show (Class _)    = "class"
@@ -48,7 +48,7 @@ instance Show Attris where
   show (Checked _)  = "checked"
   show (Radio _)    = "radio"
   show (For _)      = "for"
-  show (Value _)    = "for"
+  show (Value _)    = "value"
 
 type AttrisList = NonEmpty Attris
 single :: Attris -> AttrisList
@@ -65,14 +65,14 @@ el_ :: forall t m a. DomBuilder t m
 el_ tag = el (showt tag)
 
 elR_ :: forall t m a. DomBuilder t m
-    => Tag -> m a -> m (Element EventResult (DomBuilderSpace m) t, a) 
+    => Tag -> m a -> m (Element EventResult (DomBuilderSpace m) t, a)
 elR_ tag = el' (showt tag)
 
 shobel :: ( At m
           , Monoid m
           , Index m ~ Text
           , IxValue m ~ Text
-          ) => AttrisList -> m      
+          ) => AttrisList -> m
 shobel attrs = foldMap1 (\attr -> (showt attr =: label attr)) attrs
 
 elAttr_ :: forall t m a. DomBuilder t m

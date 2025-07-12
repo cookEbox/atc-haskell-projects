@@ -58,13 +58,13 @@ editProfileButton = do
 
 type Parse a = ParsecT String () Identity a
 
-gregorianParser :: Parse String 
-gregorianParser = do 
-  year <- count 4 digit 
-  void $ char '-' 
-  month <- count 2 digit 
+gregorianParser :: Parse String
+gregorianParser = do
+  year <- count 4 digit
   void $ char '-'
-  day <- count 2 digit 
+  month <- count 2 digit
+  void $ char '-'
+  day <- count 2 digit
   pure $ concat [day, "/", month, "/", year]
 
 printDate :: Day -> Maybe Text
@@ -82,9 +82,9 @@ profile appState = do
       profileReqEv = ProfileInfo <$> uidEv
   profileDyn  <- getProfile profileReqEv
 
-  dyn_ $ ffor profileDyn $ \profMb -> do 
+  dyn_ $ ffor profileDyn $ \profMb -> do
     case profMb of
-      Nothing -> 
+      Nothing ->
         elClass_ DIV "profile-container" $ do
           mainPageButton
           loginControlButton LoginAndMain appState
@@ -94,7 +94,7 @@ profile appState = do
 
       Just prof -> do
         elClass_ DIV "profile-container" $ do
-          elClass_ DIV "profile-buttons" $ do 
+          elClass_ DIV "profile-buttons" $ do
             showEditButton appState
             mainPageButton
             loginControlButton LoginAndMain appState

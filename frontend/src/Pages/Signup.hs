@@ -19,7 +19,7 @@ import           General.Functions
 import           Obelisk.Frontend
 import           Obelisk.Route
 import           Obelisk.Route.Frontend
-import           Reflex.Dom.Core hiding (el, elAttr, elAttr')
+import           Reflex.Dom.Core        hiding (el, elAttr, elAttr')
 
 inputValidator :: (PostBuild t m, DomBuilder t m)
                => Event t a
@@ -65,8 +65,8 @@ signUp signupDataEv = do
 signupPage :: forall t (m :: * -> *). ObeliskWidget t (R FrontendRoute) m
            => AppState t -> RoutedT t () m ()
 signupPage appState = do
-  elClass_ DIV "login-page" $ do 
-    elClass_ DIV "login-form" $ mdo 
+  elClass_ DIV "login-page" $ do
+    elClass_ DIV "login-form" $ mdo
       loginControlButton LoginAndMain appState
       el_ H1 $ text "Sign Up"
       (formEl, _) <- elAttR_ FORM (single $ OnSubmit "return false;") $ do

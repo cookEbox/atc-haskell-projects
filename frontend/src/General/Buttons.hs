@@ -6,10 +6,10 @@
 
 module General.Buttons ( loginControlButton
                        , mainPageButton
-                       , LoggedOutButtons 
+                       , LoggedOutButtons
                          ( LoginAndMain
                          , LoginAndSignup
-                         , SignupAndMain 
+                         , SignupAndMain
                          )
                        , Password (Password, NotPassword)
                        , Hideable (Hideable, Persistent)
@@ -20,19 +20,19 @@ import           Common.Route
 import           Control.Monad               (void)
 import           Control.Monad.IO.Class      (liftIO)
 import           Data.Map.Strict             (Map)
-import           Data.Maybe                  (isJust, fromMaybe)
-import           Data.Text                   (isInfixOf, Text)
-import           General.Functions
+import           Data.Maybe                  (fromMaybe, isJust)
+import           Data.Text                   (Text, isInfixOf)
 import           General.Elements
+import           General.Functions
 import           Language.Javascript.JSaddle (liftJSM)
 import           Obelisk.Frontend
 import           Obelisk.Route
 import           Obelisk.Route.Frontend
 import           Reflex.Dom.Core
 
-data LoggedOutButtons 
-  = LoginAndMain 
-  | LoginAndSignup 
+data LoggedOutButtons
+  = LoginAndMain
+  | LoginAndSignup
   | SignupAndMain
   deriving stock Eq
 
@@ -51,9 +51,9 @@ logOut appState = do
     performEvent_ $ ffor failureRespEv $ \_ -> liftJSM $ do
       liftIO $ refreshUserReq appState ()
 
-loginControlButton :: ObeliskWidget t (R FrontendRoute) m  
-                   => LoggedOutButtons 
-                   -> AppState t 
+loginControlButton :: ObeliskWidget t (R FrontendRoute) m
+                   => LoggedOutButtons
+                   -> AppState t
                    -> RoutedT t () m ()
 loginControlButton loggedOutButtons appState = el_ DIV $ do
   void $ prerender (pure ()) $ do
@@ -61,22 +61,22 @@ loginControlButton loggedOutButtons appState = el_ DIV $ do
     dyn_ $ ffor showButton $ \showBtn ->
       if showBtn
       then logOut appState
-      else 
-        case loggedOutButtons of 
+      else
+        case loggedOutButtons of
         LoginAndSignup -> do loginPageButton
                              signUpPageButton
-        LoginAndMain   -> do loginPageButton 
+        LoginAndMain   -> do loginPageButton
                              mainPageButton
         SignupAndMain  -> do signUpPageButton
                              mainPageButton
 
-mainPageButton :: ( DomBuilder t m , SetRoute t (R FrontendRoute) m) => m () 
-mainPageButton = do 
+mainPageButton :: ( DomBuilder t m , SetRoute t (R FrontendRoute) m) => m ()
+mainPageButton = do
   homeClickEv <- button "Home"
   setRoute $ (FrontendRoute_Main :/ ()) <$ homeClickEv
 
-signUpPageButton :: ( DomBuilder t m , SetRoute t (R FrontendRoute) m) => m () 
-signUpPageButton = do 
+signUpPageButton :: ( DomBuilder t m , SetRoute t (R FrontendRoute) m) => m ()
+signUpPageButton = do
   signupClickEv <- button "Sign Up"
   setRoute $ (FrontendRoute_Signup :/ ()) <$ signupClickEv
 
@@ -85,38 +85,38 @@ loginPageButton = do
   loginClickEv <- button "Login"
   setRoute $ (FrontendRoute_Login :/ ()) <$ loginClickEv
 
-data Password 
-  = Password 
-  | NotPassword 
+data Password
+  = Password
+  | NotPassword
   deriving stock Eq
 
-data Hideable t 
-  = Hideable (Event t (Map AttributeName (Maybe Text))) 
+data Hideable t
+  = Hideable (Event t (Map AttributeName (Maybe Text)))
   | Persistent
 
-textBox :: DomBuilder t m 
-        => Password 
-        -> Event t Text 
-        -> Hideable t 
+textBox :: DomBuilder t m
+        => Password
+        -> Event t Text
+        -> Hideable t
         -> m (InputElement EventResult (DomBuilderSpace m) t)
-textBox NotPassword clearEv Persistent 
-  = inputElement $ def 
-                 & inputElementConfig_setValue .~ clearEv
-                 & inputElementConfig_elementConfig 
-                   . elementConfig_initialAttributes 
-                   .~ ("maxlength" =: "64")
-textBox NotPassword clearEv (Hideable hideEv) 
-  = inputElement $ def 
-                 & inputElementConfig_setValue .~ clearEv
-                 & inputElementConfig_elementConfig 
-                   . elementConfig_initialAttributes 
-                   .~ ("disabled" =: "true" <> "maxlength" =: "280")
-                 & inputElementConfig_elementConfig 
-                   . elementConfig_modifyAttributes 
-                   .~ hideEv
-textBox Password clearEv _ 
+textBox NotPassword clearEv Persistent
   = inputElement $ def
-                 & inputElementConfig_elementConfig 
-                   . elementConfig_initialAttributes 
+                 & inputElementConfig_setValue .~ clearEv
+                 & inputElementConfig_elementConfig
+                   . elementConfig_initialAttributes
+                   .~ ("maxlength" =: "64")
+textBox NotPassword clearEv (Hideable hideEv)
+  = inputElement $ def
+                 & inputElementConfig_setValue .~ clearEv
+                 & inputElementConfig_elementConfig
+                   . elementConfig_initialAttributes
+                   .~ ("disabled" =: "true" <> "maxlength" =: "280")
+                 & inputElementConfig_elementConfig
+                   . elementConfig_modifyAttributes
+                   .~ hideEv
+textBox Password clearEv _
+  = inputElement $ def
+                 & inputElementConfig_elementConfig
+                   . elementConfig_initialAttributes
                    .~ ("type" =: "password" <> "maxlength" =: "64")
                  & inputElementConfig_setValue .~ clearEv

@@ -5,7 +5,7 @@ module Routes.Login where
 import           Common.Api
 import           Control.Monad.IO.Class  (liftIO)
 import           Crypto.KDF.BCrypt       (validatePassword)
-import           Data.Aeson              as A 
+import           Data.Aeson              as A
 import qualified Data.ByteString         as BS
 import           Data.Text               (Text)
 import           Data.Text.Encoding      (encodeUtf8)

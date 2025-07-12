@@ -19,16 +19,16 @@ import           Routes.Validate
 import           Shared.Functions
 import           Snap
 
-(.=?) :: PersistField a 
-      => EntityField Twits a 
-      -> Maybe a 
+(.=?) :: PersistField a
+      => EntityField Twits a
+      -> Maybe a
       -> Maybe (Update Twits)
 (.=?) field mval = fmap (field =.) mval
 infixr 2 .=?
 
-(.?=) :: PersistField a 
-      => EntityField Twits (Maybe a) 
-      -> Maybe a 
+(.?=) :: PersistField a
+      => EntityField Twits (Maybe a)
+      -> Maybe a
       -> Maybe (Update Twits)
 field .?= mval = fmap (\x -> field =. Just x) mval
 infixr 2 .?=

@@ -35,8 +35,8 @@ data UserProfile = UserProfile
 instance ToJSON UserProfile
 instance FromJSON UserProfile
 
-data ProfileInfo = ProfileInfo 
-  { piId :: Integer 
+data ProfileInfo = ProfileInfo
+  { piId :: Integer
   } deriving stock (Show, Generic)
 instance ToJSON ProfileInfo
 instance FromJSON ProfileInfo

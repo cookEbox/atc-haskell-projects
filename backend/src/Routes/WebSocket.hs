@@ -63,9 +63,9 @@ followedBy usr  = fmap (toInteger . fromSqlKey)
                 . fmap twitsFollowers
                 . idOrbdy snd usr
 
-respBuilder :: [(Key Tweets, Tweets)] 
-            -> [(Key Twits, Twits)] 
-            -> PatchOrReplace 
+respBuilder :: [(Key Tweets, Tweets)]
+            -> [(Key Twits, Twits)]
+            -> PatchOrReplace
             -> MessageRespsS
 respBuilder twts usrs por =
   MessageRespsS por $ M.fromList $
@@ -96,22 +96,22 @@ fetchTweetsDelta :: ConnectionPool
 fetchTweetsDelta pool lastTime filt = runDB pool $ do
   let filters = (TweetsUpdated_at >. lastTime) : filt
   tws    <- selectList filters [Desc TweetsCreated_at]
-  latest <- selectFirst [(TweetsUpdated_at >. lastTime)] 
+  latest <- selectFirst [(TweetsUpdated_at >. lastTime)]
                         [Desc TweetsUpdated_at, LimitTo 1]
   let now = maybe lastTime (tweetsUpdated_at . entityVal) latest
   pure (now, tws)
 
-getTweetDelta :: ConnectionPool 
-              -> UTCTime 
-              -> ClientMsg 
+getTweetDelta :: ConnectionPool
+              -> UTCTime
+              -> ClientMsg
               -> IO [(UTCTime, [Entity Tweets])]
-getTweetDelta pool lastTime All 
+getTweetDelta pool lastTime All
   = sequence . (:[]) $ fetchTweetsDelta pool lastTime []
 getTweetDelta pool lastTime (UserMsgs uid)
-  = sequence . (:[]) $ fetchTweetsDelta pool lastTime 
+  = sequence . (:[]) $ fetchTweetsDelta pool lastTime
                        [TweetsUser_id ==. (intToSqlKey uid)]
 getTweetDelta pool lastTime (Following uid) = do
-  fsm <- runDB pool $ fmap twitsFollowing 
+  fsm <- runDB pool $ fmap twitsFollowing
                    <$> P.get (intToSqlKey uid)
   let fs      = fromMaybe [] fsm
       fetch f = fetchTweetsDelta pool lastTime [TweetsUser_id ==. f]
@@ -135,10 +135,10 @@ returnOrGrabAll :: (Foldable t, MonadIO f) =>
                    -> t a
                    -> ClientMsg
                    -> f ([Entity Tweets], PatchOrReplace)
-returnOrGrabAll pool ts us sub 
+returnOrGrabAll pool ts us sub
   | not (null ts) = pure (ts, Patch)
   | not (null us) = (,Replace) <$> grabAll pool sub
-  | otherwise     = pure ([], Patch) 
+  | otherwise     = pure ([], Patch)
 
 sendToClient :: ConnectionPool
              -> Connection
@@ -146,7 +146,7 @@ sendToClient :: ConnectionPool
              -> [Entity Tweets]
              -> PatchOrReplace
              -> StateT UTCTime IO ()
-sendToClient pool conn newTime twtsToSend por 
+sendToClient pool conn newTime twtsToSend por
   | por == Patch && null twtsToSend = pure ()
   | otherwise = do
       allUsers <- runDB pool (selectList [] [Desc TwitsName])
@@ -161,12 +161,12 @@ flipListTuple :: [(a, [b])] -> ([a], [b])
 flipListTuple lst = (fmap fst lst, concat $ fmap snd lst)
 
 lastUpdate :: Ord a => [a] -> a -> a
-lastUpdate []    uTime = uTime 
+lastUpdate []    uTime = uTime
 lastUpdate tTime uTime = max (minimum tTime) uTime
 
-poolLoop :: ConnectionPool 
-         -> Connection 
-         -> MVar ClientMsg 
+poolLoop :: ConnectionPool
+         -> Connection
+         -> MVar ClientMsg
          -> StateT UTCTime IO ()
 poolLoop pool conn subVar = forever $ do
   liftIO $ threadDelay (100 * 1000)  -- 100 ms
@@ -175,7 +175,7 @@ poolLoop pool conn subVar = forever $ do
   tweetDelta        <- liftIO $ getTweetDelta pool lastTime sub
   (uTime, newUsers) <- liftIO $ getUserDelta pool lastTime
   let (tTime, newTweets) = flipListTuple tweetDelta
-      newTime = lastUpdate tTime uTime 
+      newTime = lastUpdate tTime uTime
   case (newTweets, newUsers) of
     ([], [])   -> pure ()
     (ts, us)   -> do
@@ -196,7 +196,7 @@ initialUserDb :: MonadIO m
               -> m ([Entity Tweets], [Entity Twits])
 initialUserDb pool uid = runDB pool $ do
   let twitsKey = toSqlKey (fromIntegral uid)
-  twts <- selectList [TweetsUser_id ==. (intToSqlKey uid)] 
+  twts <- selectList [TweetsUser_id ==. (intToSqlKey uid)]
                      [Desc TweetsCreated_at]
   usrs <- selectList [TwitsId ==. twitsKey] []
   pure (twts, usrs)
@@ -209,9 +209,9 @@ initialFollowersDb pool uid = runDB pool $ do
   let twitsKey = toSqlKey (fromIntegral uid)
   fsm <- runDB pool $ fmap twitsFollowing <$> P.get twitsKey
   let fs = fromMaybe [] fsm
-      fetch f = fetchTweetsDelta 
-                  pool 
-                  (posixSecondsToUTCTime 0) 
+      fetch f = fetchTweetsDelta
+                  pool
+                  (posixSecondsToUTCTime 0)
                   [TweetsUser_id ==. f]
   tweets <- liftIO $ traverse fetch fs
   let twts = concat $ (\t -> fmap snd t) tweets
@@ -242,21 +242,27 @@ initial pool = do
       initialTime = mostRecentUpdateTime now eTweets eUsers
   pure (response, initialTime)
 
+initDb :: Monad m 
+       => (t1 -> t2 -> m ([Entity Tweets], [Entity Twits])) 
+       -> t1 
+       -> t2 
+       -> m MessageRespsS
+initDb initDbFunc pool uid = do 
+  (ufTweets, ufUser) <- initDbFunc pool uid
+  let tweets   = entityToPair <$> ufTweets
+      users    = entityToPair <$> ufUser
+      response = respBuilder tweets users Replace
+  return response
+
 sendAll :: ConnectionPool -> Connection -> ClientMsg -> IO ()
 sendAll pool conn All = do
   (mainTweets, _) <- initial pool
   sendTextData conn (A.encode mainTweets)
-sendAll pool conn (UserMsgs uid) = do 
-  (uTweets, uUser) <- initialUserDb pool uid
-  let tweets      = entityToPair <$> uTweets
-      users       = entityToPair <$> uUser
-      response    = respBuilder tweets users Replace
+sendAll pool conn (UserMsgs uid) = do
+  response <- initDb initialUserDb pool uid
   sendTextData conn (A.encode response)
-sendAll pool conn (Following uid) = do 
-  (fTweets, fUsers) <- initialFollowersDb pool uid
-  let tweets      = entityToPair <$> fTweets
-      users       = entityToPair <$> fUsers
-      response    = respBuilder tweets users Replace
+sendAll pool conn (Following uid) = do
+  response <- initDb initialFollowersDb pool uid
   sendTextData conn (A.encode response)
 
 runWebSocket :: ConnectionPool -> ServerApp
@@ -266,7 +272,7 @@ runWebSocket pool pending = do
   void $ forkIO . forever $ do
     msg <- receiveData conn
     case A.decode msg of
-      Just newSub -> do 
+      Just newSub -> do
         modifyMVar_ subVar (const $ pure newSub)
         sendAll pool conn newSub
       Nothing     -> pure ()

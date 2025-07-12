@@ -15,8 +15,7 @@
 module Common.Route where
 
 import           Data.Functor.Identity
-import           Data.Text                (Text)
-
+import           Data.Text             (Text)
 import           Obelisk.Route
 import           Obelisk.Route.TH
 
