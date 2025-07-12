@@ -7,6 +7,7 @@ import           Common.Api
 import           Crypto.Hash.Algorithms  (SHA256)
 import           Crypto.KDF.BCrypt       (hashPassword)
 import           Crypto.MAC.HMAC         hiding (update)
+import           Data.Aeson              ((.=))
 import qualified Data.Aeson              as A
 import           Data.ByteArray          (convert)
 import qualified Data.ByteString         as BS
@@ -23,6 +24,10 @@ import           Prelude                 hiding (id)
 import           Snap
 import qualified System.IO.Streams       as Streams (toList)
 -- import           System.Environment      (getEnv)
+
+writeAesonObject :: MonadSnap m => A.Key -> Text -> m ()
+writeAesonObject ky vlu = do
+  writeLBS . A.encode $ A.object [ky .= vlu]
 
 intToSqlKey :: Integer -> Key Twits
 intToSqlKey = toSqlKey . fromIntegral

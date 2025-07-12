@@ -7,7 +7,6 @@ module Routes.Validate where
 import           Common.Api
 import           Control.Monad.IO.Class (liftIO)
 import           Data.Aeson             as A
-import           Data.Text              (Text)
 import           Shared.Functions
 import           Snap
 
@@ -22,7 +21,7 @@ auth = do
     Nothing -> do
       modifyResponse $ setResponseStatus 401 "Unauthorized"
                      . setHeader "Content-Type" "text/plain"
-      writeLBS . A.encode $ A.object ["error" .= ("Not logged in" :: Text)]
+      writeAesonObject "error" "Not logged in"
 
 validate :: Snap (Maybe UserInfo)
 validate = do

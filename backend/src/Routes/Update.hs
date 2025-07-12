@@ -8,7 +8,6 @@ import           Common.Api
 import           Control.Monad.IO.Class  (liftIO)
 import           Data.Aeson              as A hiding (Key)
 import qualified Data.List               as L (delete, nub)
-import           Data.Text               (Text)
 import           Data.Time.Clock         (getCurrentTime)
 import           Database.DB
 import           Database.Persist        as P hiding (Add, count)
@@ -91,8 +90,8 @@ update pool = do
         Nothing -> do
           modifyResponse $ setResponseStatus 400 "Bad Request"
           modifyResponse $ setHeader "Content-Type" "application/json"
-          writeLBS . A.encode $ A.object ["error" .= ("Invalid JSON" :: Text)]
+          writeAesonObject "error" "Invalid JSON"
     Nothing -> do
           modifyResponse $ setResponseStatus 400 "Bad Request"
           modifyResponse $ setHeader "Content-Type" "application/json"
-          writeLBS . A.encode $ A.object ["error" .= ("Not logged in" :: Text)]
+          writeAesonObject "error" "Not logged in"

@@ -7,7 +7,6 @@ import           Common.Api
 import           Control.Monad           (void)
 import           Control.Monad.IO.Class  (liftIO)
 import           Data.Aeson              as A
-import           Data.Text               (Text)
 import           Data.Time.Clock         (getCurrentTime)
 import           Database.DB
 import           Database.Persist        hiding (Add, count)
@@ -20,7 +19,7 @@ decodeAndRespond :: ConnectionPool -> UserInfo -> Maybe MessageReq -> Snap ()
 decodeAndRespond _ _ Nothing = do
   modifyResponse $ setResponseStatus 400 "Bad Request"
   modifyResponse $ setHeader "Content-Type" "application/json"
-  writeLBS . A.encode $ A.object ["error" .= ("Invalid JSON" :: Text)]
+  writeAesonObject "error" "Invalid JSON"
 decodeAndRespond pool userInfo (Just (MessageReq user uid reqMsg)) = do
   let isUser = uid == uiId userInfo
   if isUser
@@ -30,7 +29,7 @@ decodeAndRespond pool userInfo (Just (MessageReq user uid reqMsg)) = do
     void $ liftIO $ runSqlPool (insert newTweet) pool
   else do
     let errMsg = "Invalid Authorisation Token for " <> uiName userInfo
-    writeLBS . A.encode $ A.object ["error" .= (errMsg :: Text)]
+    writeAesonObject "error" errMsg
 
 posted :: ConnectionPool -> Snap ()
 posted pool = do
@@ -41,4 +40,4 @@ posted pool = do
     Nothing -> do
       modifyResponse $ setResponseStatus 400 "Bad Request"
       modifyResponse $ setHeader "Content-Type" "application/json"
-      writeLBS . A.encode $ A.object ["error" .= ("Not Logged In" :: Text)]
+      writeAesonObject "error" "Not Logged In"

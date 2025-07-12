@@ -9,7 +9,6 @@ import           Common.Api
 import           Control.Monad.IO.Class  (liftIO)
 import           Data.Aeson              as A hiding (Key)
 import           Data.Maybe              (catMaybes)
-import           Data.Text               (Text)
 import           Database.DB
 import           Database.Persist        as P hiding (Add, count)
 import           Database.Persist.Sql    (toSqlKey)
@@ -62,14 +61,15 @@ profileUp pool = do
   case authorised of
     Just auid ->
       case A.decode req of
-        Just upid -> do updateProfile pool upid auid
-                        modifyResponse $ setHeader "Content-Type" "application/json"
-                        writeLBS . A.encode $ A.object ["Success" .= ("Updated Profile" :: Text)]
+        Just upid -> do 
+          updateProfile pool upid auid
+          modifyResponse $ setHeader "Content-Type" "application/json"
+          writeAesonObject "Success" "Updated Profile"
         Nothing -> do
           modifyResponse $ setResponseStatus 400 "Bad Request"
           modifyResponse $ setHeader "Content-Type" "application/json"
-          writeLBS . A.encode $ A.object ["error" .= ("Invalid JSON" :: Text)]
+          writeAesonObject "error" "Invalid JSON"
     Nothing -> do
       modifyResponse $ setResponseStatus 400 "Bad Request"
       modifyResponse $ setHeader "Content-Type" "application/json"
-      writeLBS . A.encode $ A.object ["error" .= ("Not logged in" :: Text)]
+      writeAesonObject "error" "Not logged in"

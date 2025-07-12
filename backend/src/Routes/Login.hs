@@ -3,19 +3,19 @@
 module Routes.Login where
 
 import           Common.Api
-import           Control.Monad.IO.Class  (liftIO)
-import           Crypto.KDF.BCrypt       (validatePassword)
-import           Data.Aeson              as A
-import qualified Data.ByteString         as BS
-import           Data.Text               (Text)
-import           Data.Text.Encoding      (encodeUtf8)
-import           Data.Time.Clock         (NominalDiffTime, addUTCTime,
-                                          getCurrentTime)
+import           Control.Monad.IO.Class    (liftIO)
+import           Crypto.KDF.BCrypt         (validatePassword)
+import           Data.Aeson                as A
+import qualified Data.ByteString           as BS
+import           Data.Text                 (Text)
+import           Data.Text.Encoding        (encodeUtf8)
+import           Data.Time.Clock           (NominalDiffTime, addUTCTime,
+                                            getCurrentTime)
 import           Database.DB
-import           Database.Persist        hiding (Add, count)
-import           Database.Persist.Sql    (fromSqlKey)
-import           Database.Persist.Sqlite (ConnectionPool, runSqlPool)
-import           Prelude                 hiding (id)
+import           Database.Persist          hiding (Add, count)
+import           Database.Persist.Sql      (fromSqlKey)
+import           Database.Persist.Sqlite   (ConnectionPool, runSqlPool)
+import           Prelude                   hiding (id)
 import           Shared.Functions
 import           Snap
 
@@ -67,7 +67,7 @@ ifMaybeUser username password (Just (Entity id twit)) =
     writeLBS . A.encode $ A.object ["error" .= ("Invalid credentials" :: Text)]
 ifMaybeUser _ _ Nothing = do
   modifyResponse $ setResponseStatus 401 "Unauthorized"
-  writeLBS . A.encode $ A.object ["error" .= ("User not found" :: Text)]
+  writeAesonObject "error" "User not found"
 
 login :: ConnectionPool -> Snap ()
 login pool = do
@@ -78,11 +78,11 @@ login pool = do
       ifMaybeUser username password maybeUser
     Nothing -> do
       modifyResponse $ setResponseStatus 400 "Bad Request"
-      writeLBS . A.encode $ A.object ["error" .= ("Invalid JSON" :: Text)]
+      writeAesonObject "error" "Invalid JSON"
 
 logout :: Snap ()
 logout = do
   unSetCookie' $ encodeUtf8 "session"
-  writeLBS . A.encode $ A.object ["status" .= ("Logged Out" :: Text)]
+  writeAesonObject "status" "Logged Out"
 
 
