@@ -207,7 +207,7 @@ displayMessages appState respMapDyn = mdo
           userYouListDyn = replaceUserName "You" userNameDyn respMapDyn
       void $ reverseList userYouListDyn $ \msgDyn -> do
         let classDyn = classDynSw userIdDynMb msgDyn
-        elDynClass "div" classDyn $ do
+        elDynClass_ DIV classDyn $ do
           elClass_ DIV "message-header" $ do
             printUserNameLinked appState msgDyn
             maybeFollowButton userIdDynMb msgDyn
@@ -219,17 +219,42 @@ displayMessages appState respMapDyn = mdo
     pure userIdDynMb
   pure uidMb
 
-input :: (DomBuilder t m, PostBuild t m)
+textAreaMb :: MonadWidget t m 
+           => AppState t 
+           -> Event t Text
+           -> m (TextAreaElement EventResult (DomBuilderSpace m) t)
+textAreaMb appState clearEv = do 
+  postBuildEv <- getPostBuild 
+  let base = M.fromList
+              [ ("rows"     , Just "5")
+              , ("cols"     , Just "40")
+              , ("maxlength", Just "256")
+              ]
+      attrsDyn = ffor (appLoggedIn appState) $ \st -> 
+                    case st of 
+                      Just _  -> M.insert "readonly" Nothing base 
+                      Nothing -> M.insert "readonly" (Just "") base
+
+      patchAttrsDyn = mapKeysToAttributeName <$> attrsDyn
+
+      attrsEv = leftmost
+        [ tagPromptlyDyn patchAttrsDyn postBuildEv
+        , updated patchAttrsDyn
+        ]
+
+      cfg = def & textAreaElementConfig_initialValue .~ ""
+                & textAreaElementConfig_setValue     .~ clearEv
+                & modifyAttributes                   .~ attrsEv
+
+  textAreaElement cfg
+
+input :: MonadWidget t m
       => AppState t
       -> Event t Text
-      -> m (InputElement EventResult (DomBuilderSpace m) t)
+      -> m (TextAreaElement EventResult (DomBuilderSpace m) t)
 input appState clearEv = do
   let loggedInDyn = isJust <$> appLoggedIn appState
-      attrs = ffor loggedInDyn $ \loggedIn ->
-                if loggedIn
-                then "disabled" =: Nothing
-                else "disabled" =: Just (pack "true")
-  ie <- textBox NotPassword clearEv (Hideable $ updated attrs)
+  ie <- textAreaMb appState clearEv
   dyn_ $ ffor loggedInDyn $ \loggedIn ->
     if loggedIn
     then elClass_ BUTTON "send-button" $
@@ -249,7 +274,7 @@ requestEvent msgDyn nameAuthEv =
 
 postMsgs :: (Applicative m, Prerender t m)
          => AppState t
-         -> InputElement er d t
+         -> TextAreaElement EventResult (DomBuilderSpace m) t
          -> Event t ()
          -> m ()
 postMsgs appState inputEl enterEv =
@@ -257,25 +282,24 @@ postMsgs appState inputEl enterEv =
   rec
     let nameAuthEvMb = tagPromptlyDyn (appLoggedIn appState) enterEv
         nameAuthEv   = fromMaybe (UserInfo "" 0) <$> nameAuthEvMb
-        msgEv        = tagPromptlyDyn (_inputElement_value inputEl) enterEv
+        msgEv        = tagPromptlyDyn (_textAreaElement_value inputEl) enterEv
         reqEv        = requestEvent msgDyn nameAuthEv
     msgDyn <- holdDyn "" msgEv
   void $ sendRequest "post" reqEv
 
-sendTweet :: (DomBuilder t m , PostBuild t m , MonadFix m, Prerender t m) 
+sendTweet :: (MonadWidget t m, Prerender t m) 
           => AppState t -> m ()
 sendTweet appState = mdo
+  -- TODO: No longer a input Element so will need another way to catch an Enter
   (formEl, _) <- elAttR_ FORM (single $ OnSubmit "return false;") $ el_ DIV $ do
     rec
       let enterEv     = domEvent Submit formEl
-          nonEmptyDyn = not . null <$> _inputElement_value inputEl
+          nonEmptyDyn = not . null <$> _textAreaElement_value inputEl
           loginEv     = gate (current nonEmptyDyn) enterEv
           clearEv     = "" <$ loginEv
 
-      -- TODO: Needs to be an textArea
       inputEl <- el_ DIV $ input appState clearEv
-      void $ postMsgs appState inputEl loginEv
-    pure ()
+    void $ postMsgs appState inputEl loginEv
   pure ()
 
 mainFeedButton :: MonadWidget t m 
@@ -298,7 +322,7 @@ myPageFeedButton = do
     [ Type    "radio"
     , Name    "feed"
     , Id      "feed-mine"
-    , Value   "all"
+    , Value   "mine"
     ]) blank
   elAttr_ LABEL (single $ For "feed-mine") $ text "Mine"
   return myPageEl
@@ -310,7 +334,7 @@ friendFeedButton = do
     [ Type    "radio"
     , Name    "feed"
     , Id      "feed-friends"
-    , Value   "all"
+    , Value   "friends"
     ]) blank
   elAttr_ LABEL (single $ For "feed-friends") $ text "Friends"
   return friendEl

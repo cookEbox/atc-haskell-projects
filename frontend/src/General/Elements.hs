@@ -13,6 +13,7 @@ module General.Elements ( Tag (..)
                         , single
                         , multi
                         , elClass_
+                        , elDynClass_
                         ) where
 
 import           Control.Lens.At         (At, Index, IxValue)
@@ -88,3 +89,7 @@ elAttR_ tag attrs = elAttr' (showt tag) (shobel attrs)
 
 elClass_ :: DomBuilder t m => Tag -> Text -> m a -> m a
 elClass_ tag lbl = elAttr_ tag (single $ Class lbl)
+
+elDynClass_ :: (DomBuilder t m, PostBuild t m, Show a1) 
+            => a1 -> Dynamic t Text -> m a2 -> m a2
+elDynClass_ tag classDyn = elDynClass (showt tag) classDyn

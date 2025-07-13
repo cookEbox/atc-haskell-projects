@@ -115,8 +115,8 @@ body {
 .tweet-box form > div {
   display: flex;
   width: 100%;
-  gap: 0;
-  align-items: center;
+  gap: 1rem;
+  align-items: flex-end;
   padding: 0;
   margin: 0;
 }
@@ -124,29 +124,29 @@ body {
 .tweet-box form > div > div {
   display: flex;
   width: 100%;
-  justify-content: space-between;
-  align-items: center;
+  gap: 1rem;
+  align-items: flex-end;
   padding: 0;
   margin: 0;
 }
 
-.tweet-box form input {
+.tweet-box form textarea {
   flex: 1 1 auto;
-  min-width: 0;
-  min-height: 3rem;
-  /* give it full white fill and some left‐padding */
-  background: #fff;
-  padding: 0.5rem 1rem;      /* 0.5rem top/bottom, 1rem left/right */
-  margin-left: 1cm;
+  min-height: 6rem;
+  max-width: 100%;
+  padding: 0.5rem 1rem;
   font-size: 1rem;
   box-sizing: border-box;
   border: 1px solid var(--gruv-light3);
   border-radius: 4px;
   color: var(--gruv-dark0);
+  resize: none;
+  background: #fff;
 }
 
-/* when logged‐out (i.e. disabled), gray it out */
-.tweet-box form input:disabled {
+/* when logged-out (i.e. disabled), gray it out */
+.tweet-box form input:disabled,
+.tweet-box form textarea:disabled {
   background: var(--gruv-light1);
   color: var(--gruv-dark1);
   cursor: not-allowed;
@@ -154,17 +154,23 @@ body {
 
 .tweet-box form button {
   flex: 0 0 auto;
+  align-self: flex-end;
+  margin-bottom: 0;
   width: 2cm;
-  min-height: 3rem;
+  min-height: 2rem;
+}
+
+.tweet-box form button {
+  flex: 0 0 auto;
   padding: 0;
   font-size: 1rem;
   margin-left: auto;
+  margin-bottom: 0;
   background: var(--gruv-accent);
   color: var(--gruv-back);
   border: 1px solid var(--gruv-light3);
   border-radius: 4px;
 }
-
 .send-button {
   position: relative;
   background: var(--gruv-accent);
