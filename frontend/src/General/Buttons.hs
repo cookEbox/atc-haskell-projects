@@ -99,24 +99,24 @@ textBox :: DomBuilder t m
         -> Event t Text
         -> Hideable t
         -> m (InputElement EventResult (DomBuilderSpace m) t)
-textBox NotPassword clearEv Persistent
+textBox NotPassword setVauleEv Persistent
   = inputElement $ def
-                 & inputElementConfig_setValue .~ clearEv
+                 & inputElementConfig_setValue .~ setVauleEv
                  & inputElementConfig_elementConfig
                    . elementConfig_initialAttributes
                    .~ ("maxlength" =: "64")
-textBox NotPassword clearEv (Hideable hideEv)
+textBox NotPassword setVauleEv (Hideable hideEv)
   = inputElement $ def
-                 & inputElementConfig_setValue .~ clearEv
+                 & inputElementConfig_setValue .~ setVauleEv
                  & inputElementConfig_elementConfig
                    . elementConfig_initialAttributes
                    .~ ("disabled" =: "true" <> "maxlength" =: "280")
                  & inputElementConfig_elementConfig
                    . elementConfig_modifyAttributes
                    .~ hideEv
-textBox Password clearEv _
+textBox Password setVauleEv _
   = inputElement $ def
                  & inputElementConfig_elementConfig
                    . elementConfig_initialAttributes
                    .~ ("type" =: "password" <> "maxlength" =: "64")
-                 & inputElementConfig_setValue .~ clearEv
+                 & inputElementConfig_setValue .~ setVauleEv

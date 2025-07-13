@@ -319,10 +319,10 @@ myPageFeedButton :: MonadWidget t m
                  => m (Element EventResult (DomBuilderSpace m) t)
 myPageFeedButton = do 
   (myPageEl, _) <- elAttR_ INPUT ( multi
-    [ Type    "radio"
-    , Name    "feed"
-    , Id      "feed-mine"
-    , Value   "mine"
+    [ Type  "radio"
+    , Name  "feed"
+    , Id    "feed-mine"
+    , Value "mine"
     ]) blank
   elAttr_ LABEL (single $ For "feed-mine") $ text "Mine"
   return myPageEl
@@ -331,10 +331,10 @@ friendFeedButton :: MonadWidget t m
                  => m (Element EventResult (DomBuilderSpace m) t)
 friendFeedButton = do 
   (friendEl, _) <- elAttR_ INPUT ( multi
-    [ Type    "radio"
-    , Name    "feed"
-    , Id      "feed-friends"
-    , Value   "friends"
+    [ Type  "radio"
+    , Name  "feed"
+    , Id    "feed-friends"
+    , Value "friends"
     ]) blank
   elAttr_ LABEL (single $ For "feed-friends") $ text "Friends"
   return friendEl
