@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments      #-}
+{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE OverloadedStrings   #-}
@@ -9,6 +10,7 @@ module Pages.ProfileUp where
 
 import           Common.Api
 import           Common.Route
+import           Control.Monad.Fix              (MonadFix)
 import           Data.Aeson                     (ToJSON)
 import           Data.Maybe                     (fromMaybe)
 import           Data.Text                      as T (Text, isInfixOf, strip)
@@ -45,60 +47,71 @@ profilePageButton = do
   profileClickEv <- button "Back"
   setRoute $ (FrontendRoute_Profile :/ ()) <$ profileClickEv
 
+profileUpdateElements :: ( HasDomEvent t target 'SubmitTag
+                         , SetRoute t (R FrontendRoute) (Client m)
+                         , DomBuilder t m
+                         , PostBuild t m
+                         , MonadFix m
+                         , Prerender t m
+                         ) => AppState t -> target -> UserProfile -> m ()
+profileUpdateElements appState formEl prof = mdo
+  rec
+    usernameEl <- elClass_ DIV "field-group" $ do
+      el_ LABEL $ text "Username: "
+      textBox NotPassword (printTxt prName) Persistent
+
+    dobEl <- elClass_ DIV "field-group" $ do
+      el_ LABEL $ text "DOB (dd/mm/yyyy): "
+      textBox NotPassword ( fromMaybe ""
+                          . (>>= printDate)
+                          . prDOB <$> initialTxtEv
+                          ) Persistent
+
+    locationEl <- elClass_ DIV "field-group" $ do
+      el_ LABEL $ text "City/County: "
+      textBox NotPassword (printTxt prLocation) Persistent
+
+    hobbiesEl <- elClass_ DIV "field-group" $ do
+      el_ LABEL $ text "Hobbies: "
+      textBox NotPassword (printTxt prHobbies) Persistent
+
+    bioEl <- elClass_ DIV "field-group" $ do
+      el_ LABEL $ text "Bio: "
+      textBox NotPassword (printTxt prBio) Persistent
+
+    elAttr_ BUTTON (multi [Type "submit", Class "btn"]) $ text "Update"
+
+    let submitEv     = domEvent Submit formEl
+        uidDyn       = fmap uiId <$> appLoggedIn appState
+        initialTxtEv = prof <$ postBuildEv
+        printTxt fld = fromMaybe "" . fld <$> initialTxtEv
+        profileDyn   = UserProfile <$> fieldToDyn usernameEl
+                                   <*> parsedFieldToDyn dobEl
+                                   <*> fieldToDyn locationEl
+                                   <*> fieldToDyn hobbiesEl
+                                   <*> fieldToDyn bioEl
+                                   <*> uidDyn
+        updateDataEv = tag (current profileDyn) submitEv
+    postBuildEv <- getPostBuild
+    failureDyn <- profileUpdate updateDataEv
+  el_ DIV $ dynText failureDyn
+
 profileSubmit :: ObeliskWidget t (R FrontendRoute) m
               => AppState t -> RoutedT t () m ()
 profileSubmit appState = do
   elClass_ DIV "profile-page" $ do
-    elClass_ DIV "profile-form" $ mdo
-      elClass_ DIV "profile-buttons" $ do
+    elClass_ DIV "profile-form" $ do
+      elClass_ DIV "profile-buttons" $ mdo
         profilePageButton
         mainPageButton
         loginControlButton LoginAndMain appState
       el_ H1 $ text "UPDATE PROFILE PAGE"
-      (formEl, _) <- elAttR_ FORM (single $ OnSubmit "return false;") $ do
-        curProfileDyn <- getProfileDyn appState
-        dyn_ $ ffor curProfileDyn $ \profMb -> do
-          case profMb of
-            Nothing -> blank
-            Just prof -> do
-              rec
-                usernameEl <- elClass_ DIV "field-group" $ do
-                  el_ LABEL $ text "Username: "
-                  textBox NotPassword (printTxt prName) Persistent
-
-                dobEl <- elClass_ DIV "field-group" $ do
-                  el_ LABEL $ text "DOB (dd/mm/yyyy): "
-                  textBox NotPassword ( fromMaybe ""
-                                      . (>>= printDate)
-                                      . prDOB <$> initialTxtEv
-                                      ) Persistent
-
-                locationEl <- elClass_ DIV "field-group" $ do
-                  el_ LABEL $ text "City/County: "
-                  textBox NotPassword (printTxt prLocation) Persistent
-
-                hobbiesEl <- elClass_ DIV "field-group" $ do
-                  el_ LABEL $ text "Hobbies: "
-                  textBox NotPassword (printTxt prHobbies) Persistent
-
-                bioEl <- elClass_ DIV "field-group" $ do
-                  el_ LABEL $ text "Bio: "
-                  textBox NotPassword (printTxt prBio) Persistent
-
-                elAttr_ BUTTON (multi [Type "submit", Class "btn"]) $ text "Update"
-
-                let submitEv     = domEvent Submit formEl
-                    uidDyn       = fmap uiId <$> appLoggedIn appState
-                    initialTxtEv = prof <$ postBuildEv
-                    printTxt fld = fromMaybe "" . fld <$> initialTxtEv
-                    profileDyn   = UserProfile <$> fieldToDyn usernameEl
-                                               <*> parsedFieldToDyn dobEl
-                                               <*> fieldToDyn locationEl
-                                               <*> fieldToDyn hobbiesEl
-                                               <*> fieldToDyn bioEl
-                                               <*> uidDyn
-                    updateDataEv = tag (current profileDyn) submitEv
-                postBuildEv <- getPostBuild
-                failureDyn <- profileUpdate updateDataEv
-              el_ DIV $ dynText failureDyn
+      rec
+        (formEl, _) <- elAttR_ FORM (single $ OnSubmit "return false;") $ do
+          curProfileDyn <- getProfileDyn appState
+          dyn_ $ ffor curProfileDyn $ \profMb -> do
+            case profMb of
+              Nothing   -> blank
+              Just prof -> profileUpdateElements appState formEl prof
+          pure ()
       pure ()
