@@ -132,7 +132,7 @@ printUserNameLinked :: ( PerformEvent t1 f
                        ) => AppState t2 -> Dynamic t1 MessageRespS -> f ()
 printUserNameLinked appState msgDyn = do
   let authorNameDyn = fmap (resUserNameS) msgDyn
-      authorIdDyn   = fmap resUserIdS      msgDyn
+      authorIdDyn   = fmap resUserIdS     msgDyn
 
   void $ dyn $ ffor (zipDynWith (,) authorNameDyn authorIdDyn) $ \(nm, mbId) ->
     case mbId of
@@ -376,4 +376,3 @@ mainPage appState = do
       elClass_ DIV "tweet-box" $ sendTweet appState
       uidMb <- displayMessages appState msgMapDyn
     pure ()
-

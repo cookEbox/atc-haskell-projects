@@ -28,7 +28,7 @@ gregorianParser = do
   pure $ concat [day, "/", month, "/", year]
 
 printDate :: Day -> Maybe Text
-printDate = fmap pack . eitherToMaybe . parse gregorianParser "DOB" . showGregorian
+printDate = fmap pack . eitherToMaybe . parse gregorianParser "DATE" . showGregorian
 
 parsedFieldToDyn :: Reflex t => InputElement EventResult s t -> Dynamic t (Maybe Day)
 parsedFieldToDyn el = dateParser <$> _inputElement_value el

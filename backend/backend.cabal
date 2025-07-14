@@ -73,17 +73,3 @@ executable backend
                , common
                , frontend
                , obelisk-backend
-               , snap 
-               , snap-core
-               , io-streams 
-               , bytestring
-               , persistent-template
-               , persistent-sqlite
-               , persistent
-               , time
-               , transformers
-               , cryptonite
-               , utf8-string
-               , base64-bytestring
-               , memory
-               , ghc

@@ -57,12 +57,6 @@ executable frontend
                , obelisk-frontend
                , obelisk-route
                , reflex-dom
-               , aeson
-               , safe
-               , time
-               , containers
-               , blaze-html
-               , blaze-markup
   ghc-options: -Wall -O -fno-show-valid-hole-fits -threaded
                -- unsafe code
                -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields
