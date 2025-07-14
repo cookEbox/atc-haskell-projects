@@ -6,7 +6,7 @@
 {-# LANGUAGE RecursiveDo         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Pages.ProfileUp where
+module Pages.ProfileUp (profileUpdatePage) where
 
 import           Common.Api
 import           Common.Route
@@ -96,9 +96,9 @@ profileUpdateElements appState formEl prof = mdo
     failureDyn <- profileUpdate updateDataEv
   el_ DIV $ dynText failureDyn
 
-profileSubmit :: ObeliskWidget t (R FrontendRoute) m
-              => AppState t -> RoutedT t () m ()
-profileSubmit appState = do
+profileUpdatePage :: ObeliskWidget t (R FrontendRoute) m
+                  => AppState t -> RoutedT t () m ()
+profileUpdatePage appState = do
   elClass_ DIV "profile-page" $ do
     elClass_ DIV "profile-form" $ do
       elClass_ DIV "profile-buttons" $ mdo

@@ -23,9 +23,13 @@ import           Data.Text               (Text, pack, toLower)
 import           Reflex.Dom.Core         hiding (tag)
 
 data Tag
-  = HTML | HEAD | TITLE | BODY | STYLE
-  | FORM | SPAN | DIV   | LABEL | BUTTON | INPUT
-  | H1   | H2   | H3    | H4   | H5 | P | UL | LI | I | A
+  = HTML   | HEAD  | H1 | P
+  | FORM   | SPAN  | H2 | UL
+  | TITLE  | BODY  | H3 | LI
+  | DIV    | LABEL | H4 | I
+  | STYLE  | INPUT | H5 | A
+  | BUTTON 
+  
   deriving stock (Show, Eq)
 
 data Attris = Class    { label :: Text }
@@ -52,6 +56,7 @@ instance Show Attris where
   show (Value _)    = "value"
 
 type AttrisList = NonEmpty Attris
+
 single :: Attris -> AttrisList
 single = fromList . (:[])
 

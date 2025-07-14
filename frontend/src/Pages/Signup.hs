@@ -5,7 +5,7 @@
 {-# LANGUAGE RecursiveDo         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Pages.Signup where
+module Pages.Signup (signupPage) where
 
 import           Common.Api
 import           Common.Route

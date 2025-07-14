@@ -7,19 +7,16 @@
 {-# LANGUAGE RecursiveDo         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Pages.Main where
+module Pages.Main (mainPage) where
 
 import           Common.Api
 import           Common.Route
 import           Control.Monad               (void)
 import           Control.Monad.IO.Class      (MonadIO, liftIO)
 import           Control.Monad.Fix           (MonadFix)
-import           Data.Aeson                  (eitherDecodeStrict')
-import           Data.ByteString             (ByteString)
-import qualified Data.ByteString.Char8       as B8
 import qualified Data.Map                    as M
 import           Data.Maybe                  (fromMaybe, isJust)
-import           Data.Text                   (Text, pack, null, unpack)
+import           Data.Text                   (Text, pack, null)
 import           General.Buttons
 import           General.Elements
 import           General.Functions
@@ -28,17 +25,6 @@ import           Obelisk.Route
 import           Obelisk.Route.Frontend
 import           Prelude                     hiding (div, null, span)
 import           Reflex.Dom.Core             hiding (el, elAttr, elAttr')
-
-decodeJsonS :: ByteString -> MessageRespsS
-decodeJsonS bs =
-  either (const $ MessageRespsS Replace M.empty) id
-         (eitherDecodeStrict' bs)
-
-decodeJson :: Text -> [MessageResp]
-decodeJson t =
-  case eitherDecodeStrict' (B8.pack $ unpack t) of
-    Left  _err              -> [] 
-    Right (MessageResps xs) -> xs
 
 reverseList :: forall t m k v a. 
              ( Adjustable t m

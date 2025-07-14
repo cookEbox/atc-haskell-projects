@@ -5,7 +5,7 @@
 {-# LANGUAGE RecursiveDo         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Pages.Login where
+module Pages.Login (loginPage) where
 
 import           Common.Api
 import           Common.Route

@@ -28,13 +28,13 @@ flattenDyn :: Reflex t => Dynamic t (Dynamic t a) -> Dynamic t a
 flattenDyn dd =
   (\mp -> mp ! ()) <$> joinDynThroughMap (singleton () <$> dd)
 
-sendRequest :: ( MonadJSM
-               ( Performable m )
+sendRequest :: ( MonadJSM (Performable m)
                , PerformEvent t m
                , TriggerEvent t m
-               , ToJSON a)
-            => Text -> Event t a -> m (Event t XhrResponse)
-sendRequest path event = performRequestAsync $ fmap (postJson ("http://localhost:8000/" <> path)) event
+               , ToJSON a
+               ) => Text -> Event t a -> m (Event t XhrResponse)
+sendRequest path event = performRequestAsync 
+                       $ postJson ("http://localhost:8000/" <> path) <$> event
 
 tagger :: Reflex t
        => Dynamic t Text

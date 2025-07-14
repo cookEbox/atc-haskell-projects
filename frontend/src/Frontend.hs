@@ -57,11 +57,11 @@ frontend = Frontend
   , _frontend_body = do
     appState <- buildAppState
     subRoute_ $ \case
-      FrontendRoute_Main      -> mainPage appState
-      FrontendRoute_Login     -> loginPage appState
-      FrontendRoute_Signup    -> signupPage appState
-      FrontendRoute_Profile   -> profile appState
-      FrontendRoute_ProfileUp -> profileSubmit appState
+      FrontendRoute_Main      -> mainPage          appState
+      FrontendRoute_Login     -> loginPage         appState
+      FrontendRoute_Signup    -> signupPage        appState
+      FrontendRoute_Profile   -> profilePage       appState
+      FrontendRoute_ProfileUp -> profileUpdatePage appState
     pure ()
   }
 

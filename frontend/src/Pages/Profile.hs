@@ -5,7 +5,7 @@
 {-# LANGUAGE RecursiveDo         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Pages.Profile where
+module Pages.Profile (profilePage) where
 
 import           Common.Api
 import           Common.Route
@@ -42,9 +42,9 @@ editProfileButton = do
   editClickEv <- button "Edit"
   setRoute $ (FrontendRoute_ProfileUp :/ ()) <$ editClickEv
 
-profile :: ObeliskWidget t (R FrontendRoute) m
-        => AppState t -> RoutedT t () m ()
-profile appState = do
+profilePage :: ObeliskWidget t (R FrontendRoute) m
+            => AppState t -> RoutedT t () m ()
+profilePage appState = do
   elClass_ DIV "profile-page" $ do
     profileDyn  <- getProfileDyn appState
     dyn_ $ ffor profileDyn $ \profMb -> do
