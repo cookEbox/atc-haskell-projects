@@ -12,8 +12,9 @@ import qualified Data.Aeson              as A
 import           Data.ByteArray          (convert)
 import qualified Data.ByteString         as BS
 import qualified Data.ByteString.Base64  as B64
+import qualified Data.ByteString.Char8   as B8
 import qualified Data.ByteString.Lazy    as LBS
-import           Data.Text               (Text, pack)
+import           Data.Text               (Text)
 import           Data.Text.Encoding      (decodeUtf8, encodeUtf8)
 import           Data.Time.Clock         (getCurrentTime)
 import           Database.DB
@@ -23,7 +24,7 @@ import           Maybes                  (rightToMaybe)
 import           Prelude                 hiding (id)
 import           Snap
 import qualified System.IO.Streams       as Streams (toList)
--- import           System.Environment      (getEnv)
+import           System.Environment      (lookupEnv)
 
 writeAesonObject :: MonadSnap m => A.Key -> Text -> m ()
 writeAesonObject ky vlu = do
@@ -79,15 +80,9 @@ verifyToken key encoded = do
 authCookieName :: BS.ByteString
 authCookieName = "auth"
 
--- TODO: Remove this and source using a secure method
-super_secret_DELETE :: IO String
-super_secret_DELETE = pure "351c52add858652751a8dd19ad5a01c913d628abf41748021765428935e4ad11"
-
-getKey :: IO BS.ByteString
-getKey = fmap encodeUtf8 $ pack <$> super_secret_DELETE
--- getKey = fmap encodeUtf8 $ pack <$> getEnv "AUTH_SECRET"
-
--- validateAuthToken :: Text -> IO Bool
--- validateAuthToken token = do
---   key <- getKey
---   pure $ isJust (verifyToken key token)
+getKey :: IO B8.ByteString
+getKey = do
+  mEnv <- lookupEnv "AUTH_SECRET"
+  case mEnv of
+    Just s  -> pure (B8.pack s)
+    Nothing -> B8.readFile "config/auth-secret.txt"

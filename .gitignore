@@ -18,3 +18,4 @@ notes.md
 Twits.d*
 .envrc
 .direnv/
+common/auth-secret.txt
