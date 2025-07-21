@@ -211,21 +211,29 @@ textAreaMb :: MonadWidget t m
            -> m (TextAreaElement EventResult (DomBuilderSpace m) t)
 textAreaMb appState clearEv = do 
   postBuildEv <- getPostBuild 
-  let base = M.fromList
-              [ ("rows"     , Just "5")
-              , ("cols"     , Just "40")
-              , ("maxlength", Just "256")
-              ]
-      attrsDyn = ffor (appLoggedIn appState) $ \st -> 
-                    case st of 
-                      Just _  -> M.insert "readonly" Nothing base 
-                      Nothing -> M.insert "readonly" (Just "") base
+  let baseAttrs = M.fromList
+        [ ("rows"     , Just "5")
+        , ("cols"     , Just "40")
+        , ("maxlength", Just "256")
+        ]
 
-      patchAttrsDyn = mapKeysToAttributeName <$> attrsDyn
+      jsCtrlEnter = mconcat
+        [ "if(event.keyCode===13 && event.ctrlKey){"
+        , "  this.form.dispatchEvent("
+        , "    new Event('submit',{cancelable:true})"
+        , "  );"
+        , "}" 
+        ]
+
+      attrsDyn = ffor (appLoggedIn appState) $ \loggedIn ->
+        let withReadonly = if isJust loggedIn
+                           then M.insert "readonly" Nothing baseAttrs
+                           else M.insert "readonly" (Just "") baseAttrs
+        in M.insert "onkeydown" (Just jsCtrlEnter) withReadonly
 
       attrsEv = leftmost
-        [ tagPromptlyDyn patchAttrsDyn postBuildEv
-        , updated patchAttrsDyn
+        [ tagPromptlyDyn attrsDyn postBuildEv
+        , updated attrsDyn
         ]
 
       cfg = def & textAreaElementConfig_initialValue .~ ""
@@ -276,7 +284,6 @@ postMsgs appState inputEl enterEv =
 sendTweet :: (MonadWidget t m, Prerender t m) 
           => AppState t -> m ()
 sendTweet appState = mdo
-  -- TODO: No longer a input Element so will need another way to catch an Enter
   (formEl, _) <- elAttR_ FORM (single $ OnSubmit "return false;") $ el_ DIV $ do
     rec
       let enterEv     = domEvent Submit formEl

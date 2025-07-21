@@ -28,7 +28,7 @@ data Tag
   | TITLE  | BODY  | H3 | LI
   | DIV    | LABEL | H4 | I
   | STYLE  | INPUT | H5 | A
-  | BUTTON 
+  | BUTTON | PRE
   
   deriving stock (Show, Eq)
 
