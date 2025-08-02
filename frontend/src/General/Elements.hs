@@ -1,4 +1,5 @@
 {-# LANGUAGE DerivingStrategies  #-}
+{-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -10,8 +11,7 @@ module General.Elements ( Tag (..)
                         , elAttr_
                         , elAttR_
                         , AttrisList
-                        , single
-                        , multi
+                        , toAttrisList
                         , elClass_
                         , elDynClass_
                         ) where
@@ -21,6 +21,15 @@ import           Data.List.NonEmpty      (NonEmpty, fromList)
 import           Data.Semigroup.Foldable (foldMap1)
 import           Data.Text               (Text, pack, toLower)
 import           Reflex.Dom.Core         hiding (tag)
+
+class ToAttrisList a where
+  toAttrisList :: a -> AttrisList
+
+instance ToAttrisList Attris where
+  toAttrisList = pure
+
+instance ToAttrisList [Attris] where
+  toAttrisList = fromList
 
 data Tag
   = HTML   | HEAD  | H1 | P
@@ -57,12 +66,6 @@ instance Show Attris where
 
 type AttrisList = NonEmpty Attris
 
-single :: Attris -> AttrisList
-single = fromList . (:[])
-
-multi :: [Attris] -> AttrisList
-multi = fromList
-
 showt :: Show a => a -> Text
 showt = toLower . pack <$> show
 
@@ -93,7 +96,7 @@ elAttR_ :: forall t m a. DomBuilder t m
 elAttR_ tag attrs = elAttr' (showt tag) (shobel attrs)
 
 elClass_ :: DomBuilder t m => Tag -> Text -> m a -> m a
-elClass_ tag lbl = elAttr_ tag (single $ Class lbl)
+elClass_ tag lbl = elAttr_ tag (toAttrisList $ Class lbl)
 
 elDynClass_ :: (DomBuilder t m, PostBuild t m, Show a1) 
             => a1 -> Dynamic t Text -> m a2 -> m a2

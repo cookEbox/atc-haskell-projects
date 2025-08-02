@@ -79,7 +79,7 @@ profileUpdateElements appState formEl prof = mdo
       el_ LABEL $ text "Bio: "
       textBox NotPassword (printTxt prBio) Persistent
 
-    elAttr_ BUTTON (multi [Type "submit", Class "btn"]) $ text "Update"
+    elAttr_ BUTTON (toAttrisList [Type "submit", Class "btn"]) $ text "Update"
 
     let submitEv     = domEvent Submit formEl
         uidDyn       = fmap uiId <$> appLoggedIn appState
@@ -107,7 +107,7 @@ profileUpdatePage appState = do
         loginControlButton LoginAndMain appState
       el_ H1 $ text "UPDATE PROFILE PAGE"
       rec
-        (formEl, _) <- elAttR_ FORM (single $ OnSubmit "return false;") $ do
+        (formEl, _) <- elAttR_ FORM (toAttrisList $ OnSubmit "return false;") $ do
           curProfileDyn <- getProfileDyn appState
           dyn_ $ ffor curProfileDyn $ \profMb -> do
             case profMb of

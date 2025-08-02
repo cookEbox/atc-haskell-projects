@@ -46,7 +46,7 @@ loginPage appState = do
     elClass_ DIV "login-form" $ mdo 
       loginControlButton SignupAndMain appState
       el_ H1 $ text "LOGIN PAGE"
-      (formEl, _) <- elAttR_ FORM (single $ OnSubmit "return false;") $ do
+      (formEl, _) <- elAttR_ FORM (toAttrisList $ OnSubmit "return false;") $ do
         rec
           usernameEl <- elClass_ DIV "field-group" $ do
             el_ LABEL $ text "Username: "
@@ -56,7 +56,7 @@ loginPage appState = do
             el_ LABEL $ text "Password: "
             textBox Password clearEv Persistent
 
-          elAttr_ BUTTON (multi [Type "submit", Class "btn"]) $ text "Login"
+          elAttr_ BUTTON (toAttrisList [Type "submit", Class "btn"]) $ text "Login"
 
           let submitEv          = domEvent Submit formEl
               usernameDyn       = _inputElement_value usernameEl

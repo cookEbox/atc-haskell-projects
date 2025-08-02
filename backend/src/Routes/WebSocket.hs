@@ -205,7 +205,7 @@ initialFollowersDb :: MonadIO m
                    => ConnectionPool
                    -> Integer
                    -> m ([Entity Tweets], [Entity Twits])
-initialFollowersDb pool uid = runDB pool $ do
+initialFollowersDb pool uid = do
   let twitsKey = toSqlKey (fromIntegral uid)
   fsm <- runDB pool $ fmap twitsFollowing <$> P.get twitsKey
   let fs = fromMaybe [] fsm
@@ -215,7 +215,7 @@ initialFollowersDb pool uid = runDB pool $ do
                   [TweetsUser_id ==. f]
   tweets <- liftIO $ traverse fetch fs
   let twts = concat $ (\t -> fmap snd t) tweets
-  usrs <- selectList [] [Desc TwitsName]
+  usrs <- runDB pool $ selectList [] [Desc TwitsName]
   pure (twts, usrs)
 
 grabAll :: MonadIO m => ConnectionPool -> ClientMsg -> m [Entity Tweets]
@@ -223,7 +223,6 @@ grabAll pool (Following uid) = do (twts, _) <- initialFollowersDb pool uid
                                   pure twts
 grabAll pool _               = do (twts, _) <- initialAllDb pool
                                   pure twts
-
 
 mostRecentUpdateTime :: UTCTime -> [Entity Tweets] -> [Entity Twits] -> UTCTime
 mostRecentUpdateTime n []                []                = n

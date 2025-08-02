@@ -16,14 +16,14 @@ import           Control.Monad.IO.Class      (MonadIO, liftIO)
 import           Control.Monad.Fix           (MonadFix)
 import qualified Data.Map                    as M
 import           Data.Maybe                  (fromMaybe, isJust)
-import           Data.Text                   (Text, pack, null)
+import           Data.Text                   (Text, pack, null, unlines)
 import           General.Buttons
 import           General.Elements
 import           General.Functions
 import           Obelisk.Frontend
 import           Obelisk.Route
 import           Obelisk.Route.Frontend
-import           Prelude                     hiding (div, null, span)
+import           Prelude                     hiding (div, null, span, unlines)
 import           Reflex.Dom.Core             hiding (el, elAttr, elAttr')
 
 reverseList :: forall t m k v a. 
@@ -137,7 +137,7 @@ printUserNameLinked appState msgDyn = do
   void $ dyn $ ffor (zipDynWith (,) authorNameDyn authorIdDyn) $ \(nm, mbId) ->
     case mbId of
       Just uid -> do
-        (el, _) <- elAttR_ A (multi [Href "#", Class "username-link"]) (text nm)
+        (el, _) <- elAttR_ A (toAttrisList [Href "#", Class "username-link"]) (text nm)
         let clickE     = domEvent Click el
             routeE     = FrontendRoute_Profile :/ () <$ clickE
             profileE   = uid <$ clickE
@@ -217,7 +217,7 @@ textAreaMb appState clearEv = do
         , ("maxlength", Just "256")
         ]
 
-      jsCtrlEnter = mconcat
+      jsCtrlEnter = unlines
         [ "if(event.keyCode===13 && event.ctrlKey){"
         , "  this.form.dispatchEvent("
         , "    new Event('submit',{cancelable:true})"
@@ -284,7 +284,7 @@ postMsgs appState inputEl enterEv =
 sendTweet :: (MonadWidget t m, Prerender t m) 
           => AppState t -> m ()
 sendTweet appState = mdo
-  (formEl, _) <- elAttR_ FORM (single $ OnSubmit "return false;") $ el_ DIV $ do
+  (formEl, _) <- elAttR_ FORM (toAttrisList $ OnSubmit "return false;") $ el_ DIV $ do
     rec
       let enterEv     = domEvent Submit formEl
           nonEmptyDyn = not . null <$> _textAreaElement_value inputEl
@@ -298,38 +298,38 @@ sendTweet appState = mdo
 mainFeedButton :: MonadWidget t m 
                => m (Element EventResult (DomBuilderSpace m) t)
 mainFeedButton = do 
-  (allEl, _) <- elAttR_ INPUT ( multi
+  (allEl, _) <- elAttR_ INPUT ( toAttrisList
     [ Type    "radio"
     , Name    "feed"
     , Id      "feed-all"
     , Value   "all"
     , Checked ""
     ]) blank
-  elAttr_ LABEL (single $ For "feed-all") $ text "All"
+  elAttr_ LABEL (toAttrisList $ For "feed-all") $ text "All"
   return allEl
 
 myPageFeedButton :: MonadWidget t m 
                  => m (Element EventResult (DomBuilderSpace m) t)
 myPageFeedButton = do 
-  (myPageEl, _) <- elAttR_ INPUT ( multi
+  (myPageEl, _) <- elAttR_ INPUT ( toAttrisList
     [ Type  "radio"
     , Name  "feed"
     , Id    "feed-mine"
     , Value "mine"
     ]) blank
-  elAttr_ LABEL (single $ For "feed-mine") $ text "Mine"
+  elAttr_ LABEL (toAttrisList $ For "feed-mine") $ text "Mine"
   return myPageEl
 
 friendFeedButton :: MonadWidget t m 
                  => m (Element EventResult (DomBuilderSpace m) t)
 friendFeedButton = do 
-  (friendEl, _) <- elAttR_ INPUT ( multi
+  (friendEl, _) <- elAttR_ INPUT ( toAttrisList
     [ Type  "radio"
     , Name  "feed"
     , Id    "feed-friends"
     , Value "friends"
     ]) blank
-  elAttr_ LABEL (single $ For "feed-friends") $ text "Friends"
+  elAttr_ LABEL (toAttrisList $ For "feed-friends") $ text "Friends"
   return friendEl
 
 feedButtons :: MonadWidget t m 
