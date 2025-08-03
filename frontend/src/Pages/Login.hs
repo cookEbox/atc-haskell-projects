@@ -44,7 +44,7 @@ loginPage :: ObeliskWidget t (R FrontendRoute) m
 loginPage appState = do
   elClass_ DIV "login-page" $ do
     elClass_ DIV "login-form" $ mdo 
-      loginControlButton SignupAndMain appState
+      loginControlButton SignupAndMain LogoutAndHome appState
       el_ H1 $ text "LOGIN PAGE"
       (formEl, _) <- elAttR_ FORM (toAttrisList $ OnSubmit "return false;") $ do
         rec

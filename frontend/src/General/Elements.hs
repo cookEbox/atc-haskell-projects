@@ -38,7 +38,6 @@ data Tag
   | DIV    | LABEL | H4 | I
   | STYLE  | INPUT | H5 | A
   | BUTTON | PRE
-  
   deriving stock (Show, Eq)
 
 data Attris = Class    { label :: Text }
@@ -98,6 +97,6 @@ elAttR_ tag attrs = elAttr' (showt tag) (shobel attrs)
 elClass_ :: DomBuilder t m => Tag -> Text -> m a -> m a
 elClass_ tag lbl = elAttr_ tag (toAttrisList $ Class lbl)
 
-elDynClass_ :: (DomBuilder t m, PostBuild t m, Show a1) 
+elDynClass_ :: (DomBuilder t m, PostBuild t m, Show a1)
             => a1 -> Dynamic t Text -> m a2 -> m a2
 elDynClass_ tag classDyn = elDynClass (showt tag) classDyn

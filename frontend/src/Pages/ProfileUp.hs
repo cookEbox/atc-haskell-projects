@@ -102,9 +102,7 @@ profileUpdatePage appState = do
   elClass_ DIV "profile-page" $ do
     elClass_ DIV "profile-form" $ do
       elClass_ DIV "profile-buttons" $ mdo
-        profilePageButton
-        mainPageButton
-        loginControlButton LoginAndMain appState
+        loginControlButton LoginAndMain LogoutAndHome appState
       el_ H1 $ text "UPDATE PROFILE PAGE"
       rec
         (formEl, _) <- elAttR_ FORM (toAttrisList $ OnSubmit "return false;") $ do
@@ -112,6 +110,7 @@ profileUpdatePage appState = do
           dyn_ $ ffor curProfileDyn $ \profMb -> do
             case profMb of
               Nothing   -> blank
-              Just prof -> profileUpdateElements appState formEl prof
+              Just prof -> do profileUpdateElements appState formEl prof
+                              elClass_ DIV "profile-buttons" $ profilePageButton
           pure ()
       pure ()

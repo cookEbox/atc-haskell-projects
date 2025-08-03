@@ -51,8 +51,7 @@ profilePage appState = do
       case profMb of
         Nothing ->
           elClass_ DIV "profile-container" $ do
-            mainPageButton
-            loginControlButton LoginAndMain appState
+            loginControlButton LoginAndMain LogoutAndHome appState
             el_ H1 $ text "PROFILE PAGE"
             elClass_ DIV "not-found" $
               text "User not found"
@@ -60,9 +59,7 @@ profilePage appState = do
         Just prof -> do
           elClass_ DIV "profile-container" $ do
             elClass_ DIV "profile-buttons" $ do
-              showEditButton appState
-              mainPageButton
-              loginControlButton LoginAndMain appState
+              loginControlButton LoginAndMain LogoutAndHome appState
             el_ H1 $ text "PROFILE PAGE"
             elClass_ DIV "profile-field" $ do
               elClass_ DIV "profile-label" $ text "Username: "
@@ -83,3 +80,5 @@ profilePage appState = do
             elClass_ DIV "profile-field" $ do
               elClass_ DIV "profile-label" $ text "Bio: "
               el_ DIV $ text (fromMaybe "" $ prBio prof)
+            elClass_ DIV "profile-buttons" $ do
+              showEditButton appState

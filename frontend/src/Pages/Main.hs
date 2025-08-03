@@ -366,7 +366,8 @@ mainPage appState = do
   elClass_ DIV "top-banner" $
     elClass_ DIV "banner-inner" $ do
       elClass_ DIV "banner-title" $ text "Twitter App"
-      elClass_ DIV "banner-button" $ loginControlButton LoginAndSignup appState
+      elClass_ DIV "banner-button" $ loginControlButton LoginAndSignup LogoutAndProfile appState
+
   elClass_ DIV "main-content" $ void $ prerender (pure ()) $ mdo
     rec
       let userSendEv = switchDyn dynUserSend 

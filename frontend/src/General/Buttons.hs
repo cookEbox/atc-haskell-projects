@@ -1,21 +1,20 @@
 {-# LANGUAGE DerivingStrategies  #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
+{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module General.Buttons ( loginControlButton
                        , mainPageButton
-                       , LoggedOutButtons
-                         ( LoginAndMain
-                         , LoginAndSignup
-                         , SignupAndMain
-                         )
+                       , LoggedOutButtons(..)
+                       , LoggedInButtons(..)
                        , Password (Password, NotPassword)
                        , Hideable (Hideable, Persistent)
                        , textBox
                        ) where
 
+import           Common.Api
 import           Common.Route
 import           Control.Monad               (void)
 import           Control.Monad.IO.Class      (liftIO)
@@ -36,6 +35,11 @@ data LoggedOutButtons
   | SignupAndMain
   deriving stock Eq
 
+data LoggedInButtons
+  = LogoutAndProfile
+  | LogoutAndHome
+  deriving stock Eq
+
 logOut :: ( SetRoute t (R FrontendRoute) (Client m)
           , Monad m
           , Prerender t m
@@ -51,24 +55,49 @@ logOut appState = do
     performEvent_ $ ffor failureRespEv $ \_ -> liftJSM $ do
       liftIO $ refreshUserReq appState ()
 
+loggedOutButtonSwitcher :: ( DomBuilder t m
+                           , SetRoute t (R FrontendRoute) m 
+                           ) => LoggedOutButtons -> m ()
+loggedOutButtonSwitcher loggedOutButtons = 
+  case loggedOutButtons of
+  LoginAndSignup -> do loginPageButton
+                       signUpPageButton
+  LoginAndMain   -> do loginPageButton
+                       mainPageButton
+  SignupAndMain  -> do signUpPageButton
+                       mainPageButton
+
 loginControlButton :: ObeliskWidget t (R FrontendRoute) m
                    => LoggedOutButtons
+                   -> LoggedInButtons
                    -> AppState t
                    -> RoutedT t () m ()
-loginControlButton loggedOutButtons appState = el_ DIV $ do
+loginControlButton loggedOutButtons loggedInButtons appState = el_ DIV $ do
   void $ prerender (pure ()) $ do
     let showButton = isJust <$> appLoggedIn appState
     dyn_ $ ffor showButton $ \showBtn ->
       if showBtn
-      then logOut appState
-      else
-        case loggedOutButtons of
-        LoginAndSignup -> do loginPageButton
-                             signUpPageButton
-        LoginAndMain   -> do loginPageButton
-                             mainPageButton
-        SignupAndMain  -> do signUpPageButton
-                             mainPageButton
+      then do 
+        case loggedInButtons of 
+          LogoutAndProfile -> do profilePageButton appState
+                                 logOut appState 
+          LogoutAndHome    -> do mainPageButton 
+                                 logOut appState
+      else loggedOutButtonSwitcher loggedOutButtons
+
+profilePageButton :: ( SetRoute t (R FrontendRoute) (Client m)
+                     , Monad m, Prerender t m 
+                     ) => AppState t -> m ()
+profilePageButton appState = do
+  void $ prerender (pure ()) $ do
+    let loggedInIdDyn = fmap uiId <$> appLoggedIn appState 
+    profileClickEv <- button "Profile"
+    let uidEv         = tagPromptlyDyn loggedInIdDyn profileClickEv
+    performEvent_ $ ffor uidEv $ \case 
+      Just uid -> liftIO $ profileClick appState uid
+      Nothing  -> pure ()
+    setRoute $ (FrontendRoute_Profile :/ ()) <$ profileClickEv
+  pure ()
 
 mainPageButton :: ( DomBuilder t m , SetRoute t (R FrontendRoute) m) => m ()
 mainPageButton = do
