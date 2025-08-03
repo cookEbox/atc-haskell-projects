@@ -347,12 +347,15 @@ holdWidget :: (MonadWidget t m)
            => Event t b 
            -> Dynamic t (Maybe Integer) 
            -> m (Dynamic t (Event t [ClientMsg]))
-holdWidget onOpen uidMb = widgetHold
-            (pure $ [All] <$ onOpen)  
-            (ffor (updated uidMb) $ \case
-               Nothing  -> pure $ [All] <$ onOpen
-               Just uid -> feedButtons uid
-            )
+holdWidget onOpen uidMb = do
+  postBuild <- getPostBuild
+  let triggerOnLoad = tag (current uidMb) postBuild
+      updateEv      = leftmost [triggerOnLoad, updated uidMb]
+  widgetHold (feedButtons 0)  
+             (ffor updateEv $ \case
+                Nothing  -> pure $ [All] <$ onOpen
+                Just uid -> feedButtons uid
+             )
 
 patchOrClear :: MessageMapMb
              -> M.Map Integer MessageRespS -> M.Map Integer MessageRespS
