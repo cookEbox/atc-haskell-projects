@@ -348,7 +348,7 @@ holdWidget :: (MonadWidget t m)
            -> Dynamic t (Maybe Integer) 
            -> m (Dynamic t (Event t [ClientMsg]))
 holdWidget onOpen uidMb = widgetHold
-            (feedButtons 0)  
+            (pure $ [All] <$ onOpen)  
             (ffor (updated uidMb) $ \case
                Nothing  -> pure $ [All] <$ onOpen
                Just uid -> feedButtons uid
